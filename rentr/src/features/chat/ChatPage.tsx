@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SendHorizontal } from 'lucide-react';
-import { Sidebar } from './components/ui/sidebar';
 
 interface Message {
   id: number;
@@ -13,7 +12,7 @@ interface Message {
   timestamp: Date;
 }
 
-const ChatInterface: React.FC = () => {
+const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     { 
       id: 1, 
@@ -55,7 +54,6 @@ const ChatInterface: React.FC = () => {
   return (
 
     <div className="flex flex-col h-screen  mx-auto md:ml-16 transition-all duration-300">
-      <Sidebar />
       <CardHeader className="bg-gray-100 p-4">
         <CardTitle className="text-center">Chat Bot</CardTitle>
       </CardHeader>
@@ -108,4 +106,4 @@ const ChatInterface: React.FC = () => {
   );
 };
 
-export default ChatInterface;
+export default ChatPage;

@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, FileText, PlusCircle, MapPin, DollarSign, Copy } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
-import { Sidebar } from './components/ui/sidebar';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -106,7 +105,6 @@ const RentersPage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-2 md:p-4 space-y-4 md:space-y-6">
-      <Sidebar />
       <Card className="w-full max-w-5xl mx-auto bg-gray-800 text-white">
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 md:p-6">
           <div className="flex items-center space-x-4 mb-4 md:mb-0">

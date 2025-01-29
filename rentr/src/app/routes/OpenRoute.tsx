@@ -3,9 +3,8 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { supabase } from "@/lib/supabaseClient";
 import { User } from '@supabase/supabase-js';
 
-const ProtectedRoute = () => {
+const OpenRoute = () => {
 
-  
   const [user, setUser] = React.useState<User | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -23,7 +22,7 @@ const ProtectedRoute = () => {
     return <div>Loading...</div>;
   }
 
-  return user ? <Outlet /> : <Navigate to="/auth" replace />;
+  return !user ? <Outlet /> : <Navigate to="/home" replace />;
 };
 
-export default ProtectedRoute;
+export default OpenRoute;

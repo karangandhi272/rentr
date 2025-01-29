@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Sidebar } from "./components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
@@ -100,7 +99,6 @@ export default function AvailibilityPage() {
 
   return (
     <div className="md:ml-16 p-4 md:p-8">
-      <Sidebar />
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
           <h2 className="text-2xl font-bold mb-6">Set Your Availability</h2>

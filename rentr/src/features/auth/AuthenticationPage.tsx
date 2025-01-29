@@ -106,8 +106,6 @@ const AuthenticationPage = () => {
               {
                 id: data.user.id,
                 name: `${firstName} ${lastName}`,
-           
-       
               }
             ]);
 
