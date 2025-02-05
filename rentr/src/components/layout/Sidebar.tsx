@@ -1,28 +1,40 @@
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Calendar, ChevronLeft, ChevronRight, Home } from "lucide-react"
-import { useLocation, useNavigate } from "react-router-dom"
-import { NavItem } from "./types"
-import { UserAvatar } from "./UserAvatar"
-import { supabase } from "@/lib/supabaseClient"
-import { toast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  House,
+  Settings,
+} from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { NavItem } from "./types";
+import { UserAvatar } from "./UserAvatar";
+import { supabase } from "@/lib/supabaseClient";
+import { toast } from "@/hooks/use-toast";
 
 const navItems: NavItem[] = [
-  { 
-    icon: <Home className="size-5" />, 
-    label: "Home", 
-    href: "/home"
+  {
+    icon: <Home className="size-5" />,
+    label: "Home",
+    href: "/home",
   },
-  // { 
-  //   icon: <Settings className="size-5" />, 
-  //   label: "Settings", 
-  //   href: "/settings" 
-  // }, -- I'd keep this for like property settings and stuff later
-  { 
-    icon: <Calendar className="size-5" />, 
-    label: "Availability", 
-    href: "/availability" 
-  }
+  {
+    icon: <Calendar className="size-5" />,
+    label: "Availability",
+    href: "/calendar",
+  },
+  {
+    icon: <House className="size-5" />,
+    label: "Properties",
+    href: "/properties",
+  },
+  {
+    icon: <Settings className="size-5" />,
+    label: "Settings",
+    href: "/availability-settings",
+  },
 ];
 
 interface SidebarProps {
@@ -31,10 +43,10 @@ interface SidebarProps {
   onCollapsedChange: (collapsed: boolean) => void;
 }
 
-export function Sidebar({ 
+export function Sidebar({
   className,
   isCollapsed,
-  onCollapsedChange
+  onCollapsedChange,
 }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,7 +54,7 @@ export function Sidebar({
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-      navigate('/auth');
+      navigate("/auth");
     } catch (err) {
       toast({
         variant: "destructive",
@@ -58,7 +70,7 @@ export function Sidebar({
 
   return (
     <>
-      <aside 
+      <aside
         className={cn(
           "hidden md:flex fixed left-0 top-0 bottom-0 z-40",
           "border-r bg-white flex-col",
@@ -68,12 +80,10 @@ export function Sidebar({
         )}
       >
         <div className="p-4 flex items-center justify-between border-b">
-          {!isCollapsed && (
-            <h2 className="text-xl font-semibold">Dashboard</h2>
-          )}
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          {!isCollapsed && <h2 className="text-xl font-semibold">Dashboard</h2>}
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onCollapsedChange(!isCollapsed)}
             className="ml-auto"
           >
@@ -93,14 +103,12 @@ export function Sidebar({
               )}
             >
               {item.icon}
-              {!isCollapsed && (
-                <span className="ml-2">{item.label}</span>
-              )}
+              {!isCollapsed && <span className="ml-2">{item.label}</span>}
             </Button>
           ))}
         </nav>
 
-        <UserAvatar 
+        <UserAvatar
           onLogout={handleLogout}
           isCollapsed={isCollapsed}
           initials="JD"
