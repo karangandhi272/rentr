@@ -55,10 +55,14 @@ export default function RenterForm() {
     enabled: !!id,
   });
 
-  // TODO -> Create Property Images View.
-  const { data: images = [] } = useQuery({
+  // Modify the images query to handle the data type properly
+  const { data: images = [], isLoading: imagesLoading } = useQuery({
     queryKey: ["propertyImages", id],
-    queryFn: () => propertiesApi.fetchPropertyImages(id!),
+    queryFn: async () => {
+      const images = await propertiesApi.fetchPropertyImages(id!);
+      console.log('Fetched images:', images); // Debug log
+      return images;
+    },
     enabled: !!id,
   });
 
@@ -146,9 +150,17 @@ export default function RenterForm() {
             Property Images
           </h3>
           <div className="rounded-lg overflow-hidden">
-            <ImageSlider
-              images={(images as Image[]).map((image) => image.url)}
-            />
+            {imagesLoading ? (
+              <div className="h-64 flex items-center justify-center bg-gray-100">
+                <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+              </div>
+            ) : images && images.length > 0 ? (
+              <ImageSlider images={images.map(img => img.url)} />
+            ) : (
+              <div className="h-64 flex items-center justify-center bg-gray-100">
+                <p className="text-muted-foreground">No images available</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -193,6 +205,7 @@ export default function RenterForm() {
                     <DateTimePicker
                       date={field.value}
                       setDate={(date) => field.onChange(date)}
+                      propertyId={id!} // Add this line
                     />
                   </FormControl>
                   <FormMessage />

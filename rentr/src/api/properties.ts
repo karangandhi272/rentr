@@ -43,20 +43,30 @@ export const propertiesApi = {
 
     return images?.url;
   },
-  fetchPropertyImages: async function (propertyId: string) {
-    const { data: images, error: imagesError } = await supabase
-      .from("propertyimages")
-      .select("url")
-      .eq("propertyid", propertyId)
-      .limit(1)
-      .single();
 
-    if (imagesError) {
-      console.error("Error fetching image:", imagesError);
-      return "/api/placeholder/300/200";
+  async fetchPropertyImages(propertyId: string) {
+    console.log('Fetching images for property:', propertyId); // Debug log
+    
+    const { data, error } = await supabase
+      .from('propertyimages')
+      .select('*')
+      .eq('propertyid', propertyId); // Changed from property_id to propertyid
+
+    if (error) {
+      console.error('Error fetching images:', error);
+      throw error;
     }
 
-    return images?.url;
+    console.log('Raw images data:', data); // Debug log
+    
+    if (!data || data.length === 0) {
+      console.log('No images found for property:', propertyId);
+      return [];
+    }
+
+    return data.map(img => ({
+      url: img.url || img.image_url // Handle both possible column names
+    }));
   },
 
   fetchPropertyById: async function (propertyId: string) {

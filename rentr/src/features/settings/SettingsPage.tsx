@@ -11,7 +11,7 @@ const SettingsPage = () => {
 
   return (
     <div className="w-full">
-      <div className="max-w-3xl space-y-6">
+      <div className="max-w space-y-6">
         <ProfileCard 
           profile={profile}
           onLogout={() => signOut()}
