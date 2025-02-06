@@ -69,7 +69,7 @@ const HomePage = () => {
         setLeads(leadsData || []);
         setKpiData(prev => ({
           ...prev,
-          leadsGenerated: leadsData?.length || 0
+          leadsGenerated: leadsData?.length 
         }));
 
       } catch (error) {
