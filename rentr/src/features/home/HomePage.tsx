@@ -28,49 +28,65 @@ const HomePage = () => {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Get current user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError) throw userError;
         if (!user) return;
 
-        // Get user's properties
+        console.log("Fetching for user:", user.id);
+
+        // Get properties with leads count
         const { data: properties, error: propertyError } = await supabase
           .from('property')
-          .select('propertyid')
+          .select(`
+            propertyid,
+            name
+          `)
           .eq('userid', user.id);
 
         if (propertyError) throw propertyError;
         
-        // Update KPI for listings
+        console.log("Found properties:", properties);
+
+        // Update listings count
         setKpiData(prev => ({
           ...prev,
           listingsOnMarket: properties?.length || 0
         }));
 
-        if (!properties?.length) return;
+        if (properties?.length > 0) {
+          const propertyIds = properties.map(p => p.propertyid);
 
-        const propertyIds = properties.map(p => p.propertyid);
-
-        // Get leads with property details
-        const { data: leadsData, error: leadsError } = await supabase
-          .from('leads')
-          .select(`
-            *,
-            property_details:property(
+          // Get leads with explicit column selection
+          const { data: leadsData, error: leadsError } = await supabase
+            .from('leads')
+            .select(`
+              id,
               name,
-              address
-            )
-          `)
-          .in('property', propertyIds)
-          .order('date', { ascending: true });
+              date,
+              property,
+              created_at,
+              property_details:property!inner(
+                name,
+                address
+              )
+            `)
+            .in('property', propertyIds)
+            .order('created_at', { ascending: false })
+ 
 
-        if (leadsError) throw leadsError;
+          if (leadsError) {
+            console.error("Leads error:", leadsError);
+            throw leadsError;
+          }
 
-        setLeads(leadsData || []);
-        setKpiData(prev => ({
-          ...prev,
-          leadsGenerated: leadsData?.length 
-        }));
+          console.log("Found leads:", leadsData);
+
+          setLeads(leadsData || []);
+          setKpiData(prev => ({
+            ...prev,
+            leadsGenerated: leadsData?.length || 0
+          }));
+        }
 
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -82,14 +98,25 @@ const HomePage = () => {
     fetchData();
   }, []);
 
+  // Update todaysEvents to handle date comparison more safely
   const todaysEvents = leads
     .filter(lead => {
-      const leadDate = new Date(lead.date);
-      return leadDate.toDateString() === new Date().toDateString();
+      try {
+        const leadDate = new Date(lead.date);
+        const today = new Date();
+        return leadDate.getDate() === today.getDate() &&
+               leadDate.getMonth() === today.getMonth() &&
+               leadDate.getFullYear() === today.getFullYear();
+      } catch (e) {
+        console.error('Invalid date:', lead.date);
+        return false;
+      }
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  const nextEvent = todaysEvents[0];
+  const nextEvent = todaysEvents.length > 0 ? todaysEvents[0] : null;
+
+  console.log("Today's events:", todaysEvents);
 
   if (loading) {
     return (

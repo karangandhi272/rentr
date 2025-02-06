@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabaseClient";
 
 interface TimeSlot {
   date: string;
@@ -64,38 +65,81 @@ export default function AvailibilityPage() {
 
     try {
       setLoading(true);
+
+      // First get the current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error("No user found");
+
+      // Process availability through your API
       const response = await fetch("http://localhost:3000/api/availability", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ availability }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      if (!data.success) {
-        throw new Error(data.error || "Failed to process availability");
-      }
+      
+      if (!data.success) throw new Error(data.error || "Failed to process availability");
+
+      // Save processed slots to Supabase
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          availability: {
+            raw_text: availability,
+            processed_slots: data.data.slots,
+            updated_at: new Date().toISOString()
+          }
+        })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
 
       setSlots(data.data.slots);
       toast({
         title: "Success",
-        description: "Availability processed successfully",
+        description: "Availability saved successfully",
       });
     } catch (error: any) {
+      console.error('Error saving availability:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to process availability",
+        description: error.message || "Failed to save availability",
       });
     } finally {
       setLoading(false);
     }
   };
+
+  // Load saved availability on component mount
+  useEffect(() => {
+    async function loadAvailability() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('users')
+          .select('availability')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+
+        if (data?.availability) {
+          setAvailability(data.availability.raw_text || '');
+          setSlots(data.availability.processed_slots || []);
+        }
+      } catch (error) {
+        console.error('Error loading availability:', error);
+      }
+    }
+
+    loadAvailability();
+  }, []);
 
   return (
     <div className="md:ml-16 p-4 md:p-8">
