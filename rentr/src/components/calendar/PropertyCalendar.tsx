@@ -1,4 +1,4 @@
-import { 
+import {
   Calendar,
   CalendarCurrentDate,
   CalendarDayView,
@@ -9,95 +9,20 @@ import {
   CalendarPrevTrigger,
   CalendarNextTrigger,
   CalendarTodayTrigger,
-  CalendarEvent
-} from '@/components/ui/full-calendar';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { addHours, addMinutes } from 'date-fns';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+  CalendarEvent,
+} from "@/components/ui/full-calendar";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
-type Lead = {
-  id: string;
-  name: string;
-  date: string;
-  property: string;
-  property_details?: {
-    name: string;
-    address: string;
-  };
-};
+interface PropertyCalendarProps {
+  events: CalendarEvent[];
+  isLoading: boolean;
+}
 
-const PropertyCalendar = () => {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [key, setKey] = useState(0); // Add key for forcing re-render
-
-  useEffect(() => {
-    async function fetchLeads() {
-      try {
-        setLoading(true);
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-        if (!user) return;
-
-        // Get properties owned by the current user
-        const { data: properties, error: propertyError } = await supabase
-          .from('property')
-          .select('propertyid')
-          .eq('userid', user.id); // Filter by user ID
-
-        if (propertyError) throw propertyError;
-        if (!properties?.length) {
-          console.log('No properties found for user:', user.id);
-          return;
-        }
-
-        const propertyIds = properties.map(p => p.propertyid);
-        console.log('User properties:', propertyIds);
-
-        // Get leads for user's properties only
-        const { data: leads, error: leadsError } = await supabase
-          .from('leads')
-          .select(`
-            id,
-            name,
-            date,
-            property,
-            property_details:property!inner(
-              name,
-              address
-            )
-          `)
-          .in('property', propertyIds)
-          .order('created_at', { ascending: true });
-
-        if (leadsError) {
-          console.error('Leads Error:', leadsError);
-          throw leadsError;
-        }
-
-        const calendarEvents = (leads || []).map(lead => ({
-          id: lead.id,
-          start: new Date(lead.date),
-          end: addMinutes(new Date(lead.date), 30),
-          title: `${lead.property_details?.[0]?.name || 'Property'} - ${lead.name}`,
-          color: 'blue' as const,
-        }));
-
-        console.log('Calendar Events:', calendarEvents);
-        setEvents(calendarEvents);
-        setKey(prev => prev + 1);
-      } catch (error) {
-        console.error('Error in fetchLeads:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchLeads();
-  }, []);
-
-  if (loading) {
+const PropertyCalendar: React.FC<PropertyCalendarProps> = ({
+  events,
+  isLoading,
+}) => {
+  if (isLoading) {
     return (
       <div className="h-dvh flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
@@ -109,23 +34,31 @@ const PropertyCalendar = () => {
   }
 
   return (
-    <Calendar 
-      key={key} 
-      events={events}
-      defaultDate={events[0]?.start || new Date()}
-    >
+    <Calendar events={events} defaultDate={events[0]?.start || new Date()}>
       <div className="h-dvh pt-14 px-4 md:px-14 flex flex-col">
         <div className="flex px-6 items-center gap-2 mb-6">
-          <CalendarViewTrigger className="aria-[current=true]:bg-accent" view="day">
+          <CalendarViewTrigger
+            className="aria-[current=true]:bg-accent"
+            view="day"
+          >
             Day
           </CalendarViewTrigger>
-          <CalendarViewTrigger view="week" className="aria-[current=true]:bg-accent">
+          <CalendarViewTrigger
+            view="week"
+            className="aria-[current=true]:bg-accent"
+          >
             Week
           </CalendarViewTrigger>
-          <CalendarViewTrigger view="month" className="aria-[current=true]:bg-accent">
+          <CalendarViewTrigger
+            view="month"
+            className="aria-[current=true]:bg-accent"
+          >
             Month
           </CalendarViewTrigger>
-          <CalendarViewTrigger view="year" className="aria-[current=true]:bg-accent">
+          <CalendarViewTrigger
+            view="year"
+            className="aria-[current=true]:bg-accent"
+          >
             Year
           </CalendarViewTrigger>
 
