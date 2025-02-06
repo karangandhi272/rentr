@@ -1,42 +1,37 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 
-import { 
-  CheckIcon, 
-  PlusIcon, 
-  RocketIcon, 
-  ArrowRightIcon 
-} from 'lucide-react';
-
+import { CheckIcon, PlusIcon, RocketIcon, ArrowRightIcon } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-
-  const handleButtonClick = () => {
-    console.log("working");
-    navigate('/Auth');  // Navigate to AnotherPage
+  const handleLogin = () => {
+    if (user) {
+      return navigate("/home");
+    }
+    navigate("/auth");
   };
-
 
   const features = [
     {
       icon: <RocketIcon className="w-6 h-6 text-blue-500" />,
       title: "Lightning Fast",
-      description: "Incredible performance with cutting-edge technology."
+      description: "Incredible performance with cutting-edge technology.",
     },
     {
       icon: <CheckIcon className="w-6 h-6 text-green-500" />,
       title: "Easy to Use",
-      description: "Intuitive interface designed for maximum productivity."
+      description: "Intuitive interface designed for maximum productivity.",
     },
     {
       icon: <PlusIcon className="w-6 h-6 text-purple-500" />,
       title: "Scalable Solution",
-      description: "Grows seamlessly with your business needs."
-    }
+      description: "Grows seamlessly with your business needs.",
+    },
   ];
 
   return (
@@ -46,11 +41,16 @@ const LandingPage = () => {
         <div className="w-full px-4 py-4 flex justify-between items-center">
           <div className="text-2xl font-bold text-gray-900">ProductName</div>
           <nav className="hidden md:flex space-x-4 items-center">
-            <a href="#features" className="text-gray-600 hover:text-gray-900">Features</a>
-            <a href="#pricing" className="text-gray-600 hover:text-gray-900">Pricing</a>
+            <a href="#features" className="text-gray-600 hover:text-gray-900">
+              Features
+            </a>
+            <a href="#pricing" className="text-gray-600 hover:text-gray-900">
+              Pricing
+            </a>
 
-            <Button variant="outline" size="sm" onClick={handleButtonClick}>Login</Button>
-
+            <Button variant="outline" size="sm" onClick={handleLogin}>
+              Login
+            </Button>
           </nav>
           {/* Mobile Menu Placeholder */}
           <div className="md:hidden">☰</div>
@@ -85,10 +85,11 @@ const LandingPage = () => {
               Why Choose Our Solution
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              We've designed a product that simplifies complex workflows and empowers your team.
+              We've designed a product that simplifies complex workflows and
+              empowers your team.
             </p>
           </div>
-          
+
           <div className="grid md:grid-cols-3 gap-4 md:gap-8">
             {features.map((feature, index) => (
               <Card key={index} className="hover:shadow-lg transition-all">
@@ -97,7 +98,9 @@ const LandingPage = () => {
                   <CardTitle className="text-lg">{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600 text-sm md:text-base">{feature.description}</p>
+                  <p className="text-gray-600 text-sm md:text-base">
+                    {feature.description}
+                  </p>
                 </CardContent>
               </Card>
             ))}
@@ -111,7 +114,6 @@ const LandingPage = () => {
           <p className="text-sm">© 2024 roductName. All rights reserved.</p>
         </div>
       </footer>
-     
     </div>
   );
 };
