@@ -1,9 +1,8 @@
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { supabase } from "@/lib/supabaseClient";
-import { User } from '@supabase/supabase-js';
-import { AuthenticatedLayout } from '../layouts/AuthenticatedLayout';
-import { MinimalLayout } from '../layouts/MinimalLayout';
+import React from "react";
+import { Navigate, Outlet } from "react-router-dom";
+import { AuthenticatedLayout } from "../layouts/AuthenticatedLayout";
+import { MinimalLayout } from "../layouts/MinimalLayout";
+import { useAuth } from "@/contexts/AuthContext";
 type LayoutConfig = {
   [key: string]: React.FC<{ children: React.ReactNode }>;
 };
@@ -17,20 +16,12 @@ interface ProtectedRouteProps {
   layout?: keyof typeof layouts;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ layout = 'default' }) => {
-  const [user, setUser] = React.useState<User | null>(null);
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      setLoading(false);
-    };
-    checkUser();
-  }, []);
-
-  if (loading) {
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  layout = "default",
+}) => {
+  const { user, isLoading } = useAuth();
+  console.log(user);
+  if (isLoading) {
     return <div>Loading...</div>;
   }
 

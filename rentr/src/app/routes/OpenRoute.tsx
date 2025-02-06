@@ -1,28 +1,7 @@
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { supabase } from "@/lib/supabaseClient";
-import { User } from '@supabase/supabase-js';
+import { Outlet } from "react-router-dom";
 
 const OpenRoute = () => {
-
-  const [user, setUser] = React.useState<User | null>(null);
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      setLoading(false);
-    };
-
-    checkUser();
-  }, []);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  return !user ? <Outlet /> : <Navigate to="/home" replace />;
+  return <Outlet />;
 };
 
 export default OpenRoute;

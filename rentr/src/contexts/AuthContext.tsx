@@ -1,15 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Database } from "@/types/supabase";
-
-type DbUser = Database["public"]["Tables"]["users"]["Row"];
-
-interface AuthUser extends DbUser {
-  email: string;
-}
+import { Session, User } from "@supabase/supabase-js";
 
 interface AuthContextType {
-  user: AuthUser | null;
+  user: User | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (data: SignUpData) => Promise<void>;
@@ -26,56 +20,28 @@ export interface SignUpData {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check active session
+    setIsLoading(true);
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchUser(session.user.id);
-      } else {
-        setUser(null);
-        setIsLoading(false);
-      }
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        await fetchUser(session.user.id);
-      } else {
-        setUser(null);
-      }
+      setSession(session);
+      setUser(session?.user ?? null);
       setIsLoading(false);
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
-
-  async function fetchUser(userId: string) {
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", userId)
-      .single();
-
-    if (error) {
-      console.error("Error fetching user:", error);
-      return;
-    }
-
-    if (data) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUser({ ...data, email: user?.email || "" });
-    }
-  }
 
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({
@@ -116,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const value = {
+    session,
     user,
     isLoading,
     signIn,
