@@ -1,124 +1,23 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Building2, Loader2, UserPlus } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
-
-type Lead = {
-  id: string;
-  name: string;
-  date: string;
-  property: string;
-  created_at: string;
-  property_details?: {
-    name: string;
-    address: string;
-  };
-};
+import { useUserLeads } from "./hooks/use-user-leads";
+import { useUserProperties } from "./hooks/use-user-properties";
+import { useAuth } from "@/contexts/AuthContext";
 
 const HomePage = () => {
   const [date, setDate] = React.useState(new Date());
-  const [loading, setLoading] = useState(true);
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [kpiData, setKpiData] = useState({
-    listingsOnMarket: 0,
-    leadsGenerated: 0
-  });
+  const { user } = useAuth();
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-        if (!user) return;
+  const { data: properties, isLoading: propertiesLoading } = useUserProperties(
+    user!.id
+  );
+  const propertyIds = properties?.map((p) => p.propertyid) ?? [];
 
-        console.log("Fetching for user:", user.id);
+  const { data: leads, isLoading: leadsLoading } = useUserLeads(propertyIds);
 
-        // Get properties with leads count
-        const { data: properties, error: propertyError } = await supabase
-          .from('property')
-          .select(`
-            propertyid,
-            name
-          `)
-          .eq('userid', user.id);
-
-        if (propertyError) throw propertyError;
-        
-        console.log("Found properties:", properties);
-
-        // Update listings count
-        setKpiData(prev => ({
-          ...prev,
-          listingsOnMarket: properties?.length || 0
-        }));
-
-        if (properties?.length > 0) {
-          const propertyIds = properties.map(p => p.propertyid);
-
-          // Get leads with explicit column selection
-          const { data: leadsData, error: leadsError } = await supabase
-            .from('leads')
-            .select(`
-              id,
-              name,
-              date,
-              property,
-              created_at,
-              property_details:property!inner(
-                name,
-                address
-              )
-            `)
-            .in('property', propertyIds)
-            .order('created_at', { ascending: false })
- 
-
-          if (leadsError) {
-            console.error("Leads error:", leadsError);
-            throw leadsError;
-          }
-
-          console.log("Found leads:", leadsData);
-
-          setLeads(leadsData || []);
-          setKpiData(prev => ({
-            ...prev,
-            leadsGenerated: leadsData?.length || 0
-          }));
-        }
-
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, []);
-
-  // Update todaysEvents to handle date comparison more safely
-  const todaysEvents = leads
-    .filter(lead => {
-      try {
-        const leadDate = new Date(lead.date);
-        const today = new Date();
-        return leadDate.getDate() === today.getDate() &&
-               leadDate.getMonth() === today.getMonth() &&
-               leadDate.getFullYear() === today.getFullYear();
-      } catch (e) {
-        console.error('Invalid date:', lead.date);
-        return false;
-      }
-    })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  const nextEvent = todaysEvents.length > 0 ? todaysEvents[0] : null;
-
-  console.log("Today's events:", todaysEvents);
-
-  if (loading) {
+  if (propertiesLoading || leadsLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
@@ -128,6 +27,24 @@ const HomePage = () => {
       </div>
     );
   }
+
+  const todaysEvents = (leads || [])
+    .filter((lead) => {
+      try {
+        const leadDate = new Date(lead.date);
+        const today = new Date();
+        return (
+          leadDate.getDate() === today.getDate() &&
+          leadDate.getMonth() === today.getMonth() &&
+          leadDate.getFullYear() === today.getFullYear()
+        );
+      } catch {
+        return false;
+      }
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const nextEvent = todaysEvents.length > 0 ? todaysEvents[0] : null;
 
   return (
     <div className="p-8 space-y-6">
@@ -141,7 +58,7 @@ const HomePage = () => {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{kpiData.listingsOnMarket}</div>
+            <div className="text-2xl font-bold">{properties?.length ?? 0}</div>
             <p className="text-xs text-muted-foreground">Active listings</p>
           </CardContent>
         </Card>
@@ -154,7 +71,7 @@ const HomePage = () => {
             <UserPlus className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{kpiData.leadsGenerated}</div>
+            <div className="text-2xl font-bold">{leads?.length ?? 0}</div>
             <p className="text-xs text-muted-foreground">Total applications</p>
           </CardContent>
         </Card>
@@ -185,7 +102,8 @@ const HomePage = () => {
             </div>
             {nextEvent && (
               <div className="text-sm text-muted-foreground">
-                Next up: {nextEvent.property_details?.name} at {new Date(nextEvent.date).toLocaleTimeString()}
+                Next up: {nextEvent.property_details?.name} at{" "}
+                {new Date(nextEvent.date).toLocaleTimeString()}
               </div>
             )}
           </CardHeader>
