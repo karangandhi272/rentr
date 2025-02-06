@@ -1,7 +1,7 @@
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { Button } from "@/components/ui/button"
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -10,13 +10,13 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { useState } from "react"
-import { useToast } from "@/hooks/use-toast"
-import { useNavigate } from "react-router-dom"
-import { supabase } from "@/lib/supabaseClient"
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabaseClient";
 
 const formSchema = z.object({
   propertyName: z.string().min(2, {
@@ -31,12 +31,12 @@ const formSchema = z.object({
   description: z.string().min(10, {
     message: "Description must be at least 10 characters.",
   }),
-})
+});
 
 export default function PropertyForm() {
-  const { toast } = useToast()
-  const navigate = useNavigate()
-  const [images, setImages] = useState<File[]>([])
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [images, setImages] = useState<File[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,38 +46,37 @@ export default function PropertyForm() {
       price: "",
       description: "",
     },
-  })
+  });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
+    const files = e.target.files;
     if (files) {
-      setImages(Array.from(files))
+      setImages(Array.from(files));
     }
-  }
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       // 1. Upload images to storage bucket
       const imageUrls = await Promise.all(
         images.map(async (image) => {
-          const fileExt = image.name.split('.').pop();
+          const fileExt = image.name.split(".").pop();
           const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
-
           const { error: uploadError } = await supabase.storage
-            .from('images')
+            .from("images")
             .upload(fileName, image);
-
-            
 
           if (uploadError) throw uploadError;
 
-          const { data: { publicUrl } } = supabase.storage
-            .from('images')
-            .getPublicUrl(fileName);
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from("images").getPublicUrl(fileName);
 
           return publicUrl;
         })
@@ -86,15 +85,15 @@ export default function PropertyForm() {
 
       // 2. Insert property data
       const { data: propertyData, error: propertyError } = await supabase
-        .from('property')
+        .from("property")
         .insert([
           {
             name: values.propertyName,
             address: values.address,
             price: parseFloat(values.price),
             description: values.description,
-            userid: user.id
-          }
+            userid: user.id,
+          },
         ])
         .select()
         .single();
@@ -104,11 +103,11 @@ export default function PropertyForm() {
       // 3. Insert image references
       if (imageUrls.length > 0) {
         const { error: imageError } = await supabase
-          .from('propertyimages')
+          .from("propertyimages")
           .insert(
-            imageUrls.map(url => ({
+            imageUrls.map((url) => ({
               propertyid: propertyData.propertyid,
-              url: url
+              url: url,
             }))
           );
 
@@ -119,10 +118,10 @@ export default function PropertyForm() {
         title: "Success!",
         description: "Property listed successfully.",
       });
-      
-      navigate('/home');
+
+      navigate("/dashboard");
     } catch (error: any) {
-      console.error('Submission error:', error);
+      console.error("Submission error:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -166,7 +165,10 @@ export default function PropertyForm() {
               <FormItem>
                 <FormLabel>Address</FormLabel>
                 <FormControl>
-                  <Input placeholder="123 Main St, City, State, ZIP" {...field} />
+                  <Input
+                    placeholder="123 Main St, City, State, ZIP"
+                    {...field}
+                  />
                 </FormControl>
                 <FormDescription>
                   Enter the complete property address.
@@ -224,9 +226,10 @@ export default function PropertyForm() {
               className="cursor-pointer"
             />
             <FormDescription>
-              Upload up to 5 images of your property. Supported formats: JPG, PNG.
+              Upload up to 5 images of your property. Supported formats: JPG,
+              PNG.
             </FormDescription>
-            
+
             {images.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                 {images.map((image, index) => (
@@ -242,11 +245,14 @@ export default function PropertyForm() {
             )}
           </div>
 
-          <Button type="submit" className="w-full border-2 border-black rounded-lg">
+          <Button
+            type="submit"
+            className="w-full border-2 border-black rounded-lg"
+          >
             List Property
           </Button>
         </form>
       </Form>
     </div>
-  )
+  );
 }

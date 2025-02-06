@@ -20,7 +20,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   layout = "default",
 }) => {
   const { user, isLoading } = useAuth();
-  console.log(user);
   if (isLoading) {
     return <div>Loading...</div>;
   }

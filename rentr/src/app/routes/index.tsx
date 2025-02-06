@@ -23,7 +23,7 @@ const AppRoutes = () => {
         </Route>
 
         <Route element={<ProtectedRoute layout="default" />}>
-          <Route path="/home" element={<HomePage />} />
+          <Route path="/dashboard" element={<HomePage />} />
           <Route path="/properties" element={<PropertiesPage />} />
           {/* <Route path="/chat" element={<ChatPage />} /> */}
           <Route path="/calendar" element={<CalendarPage />} />

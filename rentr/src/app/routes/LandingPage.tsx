@@ -11,7 +11,7 @@ const LandingPage = () => {
 
   const handleLogin = () => {
     if (user) {
-      return navigate("/home");
+      return navigate("/dashboard");
     }
     navigate("/auth");
   };

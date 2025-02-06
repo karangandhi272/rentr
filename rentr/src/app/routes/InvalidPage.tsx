@@ -30,18 +30,18 @@ export default function InvalidPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-2 justify-center">
-          <Button 
+          <Button
             variant="outline"
             onClick={() => navigate(-1)}
             className="border-2 border-black"
           >
             Go Back
           </Button>
-          <Button 
-            onClick={() => navigate('/home')}
+          <Button
+            onClick={() => navigate("/dashboard")}
             className="border-2 border-black bg-primary text-black hover:bg-primary/90"
           >
-            Return Home
+            Return to Dashboard
           </Button>
         </div>
       </div>

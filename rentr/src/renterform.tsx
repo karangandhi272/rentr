@@ -16,8 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { DateTimePicker } from "@/components/ui/datetimepicker";
 import { ImageSlider } from "@/components/ui/image-slider";
 import { useQuery } from "@tanstack/react-query";
-import { fetchPropertyById, fetchPropertyImages } from "./api/properties";
-import { supabase } from "./lib/supabaseClient"; // Make sure this path is correct
+import { propertiesApi, propertyKeys } from "./api/properties";
+import { supabase } from "./lib/supabaseClient";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -30,14 +30,6 @@ const formSchema = z.object({
     required_error: "Please select a date and time.",
   }),
 });
-
-export type Property = {
-  propertyid: string;
-  name: string;
-  address: string;
-  price: number;
-  images?: string[];
-};
 
 export type Image = {
   url: string;
@@ -58,14 +50,15 @@ export default function RenterForm() {
   });
 
   const { data: property, isLoading: isLoadingProperty } = useQuery({
-    queryFn: () => fetchPropertyById(id!),
-    queryKey: ["property", id],
+    queryFn: () => propertiesApi.fetchPropertyById(id!),
+    queryKey: propertyKeys.detail(id!),
     enabled: !!id,
   });
 
+  // TODO -> Create Property Images View.
   const { data: images = [] } = useQuery({
     queryKey: ["propertyImages", id],
-    queryFn: () => fetchPropertyImages(id!),
+    queryFn: () => propertiesApi.fetchPropertyImages(id!),
     enabled: !!id,
   });
 
@@ -76,14 +69,16 @@ export default function RenterForm() {
       <div className="h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-muted-foreground">No property ID provided</p>
-          <Button onClick={() => navigate("/home")}>Go Home</Button>
+          <Button onClick={() => navigate("/dashboard")}>
+            Go back to Dashboard
+          </Button>
         </div>
       </div>
     );
   }
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      console.log('Submitting form with values:', values); // Debug log
+      console.log("Submitting form with values:", values); // Debug log
 
       const { error } = await supabase.from("leads").insert([
         {
@@ -93,21 +88,22 @@ export default function RenterForm() {
           date: values.date.toISOString(), // Convert Date to ISO string
         },
       ]);
-      
+
       if (error) {
-        console.error('Supabase error:', error); // Debug log
+        console.error("Supabase error:", error); // Debug log
         throw error;
       }
-      
+
       toast({
         title: "Application Submitted!",
         description: "We'll be in touch soon.",
-        className: "bg-white border-2 border-black bottom-0 fixed mb-4 left-1/2 -translate-x-1/2 w-[90vw] md:w-auto",
+        className:
+          "bg-white border-2 border-black bottom-0 fixed mb-4 left-1/2 -translate-x-1/2 w-[90vw] md:w-auto",
       });
-      
+
       navigate("/");
     } catch (error: any) {
-      console.error('Submission error:', error); // Debug log
+      console.error("Submission error:", error); // Debug log
       toast({
         variant: "destructive",
         title: "Error",

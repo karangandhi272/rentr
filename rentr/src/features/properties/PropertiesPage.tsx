@@ -8,13 +8,13 @@ import { useState } from "react";
 
 const PropertiesPage = () => {
   const navigate = useNavigate();
-  const { data: listings, isLoading } = useProperties();
   const [searchValue, setSearchValue] = useState("");
+  const { data: listings, isLoading } = useProperties();
 
   if (isLoading) return <div>Loading...</div>;
 
   const filteredListings = listings?.filter((property) =>
-    property.name.toLowerCase().includes(searchValue.toLowerCase())
+    property.name?.toLowerCase().includes(searchValue.toLowerCase())
   );
 
   return (
@@ -38,7 +38,7 @@ const PropertiesPage = () => {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 overflow-auto">
         {(filteredListings || []).map((property) => (
-          <PropertyCard key={property.id} listing={property} />
+          <PropertyCard key={property.propertyid} listing={property} />
         ))}
       </div>
     </div>

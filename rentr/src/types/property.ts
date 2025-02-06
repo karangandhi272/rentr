@@ -1,9 +1,7 @@
-export type PropertyListing = {
-  id: string;
-  propertyid: string;
-  name: string;
-  price: number;
-  address: string;
-  description: string;
-  image_url?: string;
-};
+import { Database } from "./supabase";
+
+export type Property = Database["public"]["Tables"]["property"]["Row"];
+export type PropertyAndImage = Property & { image_url: string };
+
+export type PropertyUpdate = Database["public"]["Tables"]["property"]["Update"];
+export type PropertyInsert = Database["public"]["Tables"]["property"]["Insert"];

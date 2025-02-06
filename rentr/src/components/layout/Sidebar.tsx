@@ -4,7 +4,6 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  Home,
   House,
   Settings,
 } from "lucide-react";
@@ -13,12 +12,13 @@ import { NavItem } from "./types";
 import { UserAvatar } from "./UserAvatar";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "@/hooks/use-toast";
+import { DashboardIcon } from "@radix-ui/react-icons";
 
 const navItems: NavItem[] = [
   {
-    icon: <Home className="size-5" />,
-    label: "Home",
-    href: "/home",
+    icon: <DashboardIcon className="size-5" />,
+    label: "Dashboard",
+    href: "/dashboard",
   },
   {
     icon: <Calendar className="size-5" />,
