@@ -13,6 +13,12 @@ import { NavItem } from "./types";
 import { UserAvatar } from "./UserAvatar";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "@/hooks/use-toast";
+import { useEffect, useState } from "react";
+
+type Profile = {
+  full_name: string;
+
+};
 
 const navItems: NavItem[] = [
   {
@@ -48,8 +54,43 @@ export function Sidebar({
   isCollapsed,
   onCollapsedChange,
 }: SidebarProps) {
+  const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    async function getUserProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: profile } = await supabase
+          .from('users')
+          .select('name')
+          .eq('id', user.id)
+          .single();
+
+        if (profile) {
+          setUserProfile({
+            full_name: profile.name,
+
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    }
+
+    getUserProfile();
+  }, []);
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase();
+  };
 
   const handleLogout = async () => {
     try {
@@ -111,8 +152,8 @@ export function Sidebar({
         <UserAvatar
           onLogout={handleLogout}
           isCollapsed={isCollapsed}
-          initials="JD"
-          name="John Doe"
+          initials={userProfile ? getInitials(userProfile.full_name) : "??"}
+          name={userProfile?.full_name || "Loading..."}
         />
       </aside>
 

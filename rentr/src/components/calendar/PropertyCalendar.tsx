@@ -36,28 +36,26 @@ const PropertyCalendar = () => {
     async function fetchLeads() {
       try {
         setLoading(true);
-        // Get current user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError) throw userError;
         if (!user) return;
 
-        console.log('User found:', user.id); // Debug log
-
-        // Get properties
+        // Get properties owned by the current user
         const { data: properties, error: propertyError } = await supabase
           .from('property')
-          .select('propertyid');
+          .select('propertyid')
+          .eq('userid', user.id); // Filter by user ID
 
         if (propertyError) throw propertyError;
         if (!properties?.length) {
-          console.log('No properties found'); // Debug log
+          console.log('No properties found for user:', user.id);
           return;
         }
 
         const propertyIds = properties.map(p => p.propertyid);
-        console.log('Property IDs:', propertyIds); // Debug log
+        console.log('User properties:', propertyIds);
 
-        // Get leads with simplified query
+        // Get leads for user's properties only
         const { data: leads, error: leadsError } = await supabase
           .from('leads')
           .select(`
@@ -66,19 +64,18 @@ const PropertyCalendar = () => {
             date,
             property,
             property_details:property!inner(
-              name
+              name,
+              address
             )
           `)
-          .in('property', propertyIds);
+          .in('property', propertyIds)
+          .order('created_at', { ascending: true });
 
         if (leadsError) {
-          console.error('Leads Error:', leadsError); // Debug log
+          console.error('Leads Error:', leadsError);
           throw leadsError;
         }
 
-        console.log('Leads found:', leads); // Debug log
-
-        // Transform leads to events
         const calendarEvents = (leads || []).map(lead => ({
           id: lead.id,
           start: new Date(lead.date),
@@ -87,10 +84,9 @@ const PropertyCalendar = () => {
           color: 'blue' as const,
         }));
 
-        console.log('Calendar Events:', calendarEvents); // Debug log
-
+        console.log('Calendar Events:', calendarEvents);
         setEvents(calendarEvents);
-        setKey(prev => prev + 1); // Force calendar re-render
+        setKey(prev => prev + 1);
       } catch (error) {
         console.error('Error in fetchLeads:', error);
       } finally {
