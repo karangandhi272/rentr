@@ -2,29 +2,46 @@ import PropertyCard from "@/components/calendar/PropertyCard";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useProperties } from "./hooks/useProperties";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
+import { useState } from "react";
 
 const PropertiesPage = () => {
   const navigate = useNavigate();
   const { data: listings, isLoading } = useProperties();
+  const [searchValue, setSearchValue] = useState("");
 
   if (isLoading) return <div>Loading...</div>;
 
+  const filteredListings = listings?.filter((property) =>
+    property.name.toLowerCase().includes(searchValue.toLowerCase())
+  );
+
   return (
-    <>
-      <div className="w-full flex justify-end mb-4 mt-4 px-4 md:px-8">
-        <Button
-          onClick={() => navigate("/add-property")}
-          className="bg-primary text-black hover:bg-primary/90 px-6 py-2 rounded-md border border-black shadow-md transition-all duration-300 text-sm md:text-base font-medium"
-        >
+    <div className="w-full flex flex-col px-4 sm:px-8">
+      <h1 className="text-2xl font-semibold text-primary-foreground mb-4">
+        Properties
+      </h1>
+      <div className="w-full flex justify-between mb-4 mt-4">
+        <div className="relative max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search Properties..."
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            className="pl-8 block rounded-xl"
+          />
+        </div>
+        <Button onClick={() => navigate("/add-property")} variant={"outline"}>
           Add Property
         </Button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 overflow-auto">
-        {(listings || []).map((property) => (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 overflow-auto">
+        {(filteredListings || []).map((property) => (
           <PropertyCard key={property.id} listing={property} />
         ))}
       </div>
-    </>
+    </div>
   );
 };
 

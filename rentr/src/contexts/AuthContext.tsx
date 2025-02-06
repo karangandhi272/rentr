@@ -5,6 +5,7 @@ import { Session, User } from "@supabase/supabase-js";
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  session: Session | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (data: SignUpData) => Promise<void>;
   signOut: () => Promise<void>;
