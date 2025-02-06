@@ -17,18 +17,16 @@ import { DateTimePicker } from "@/components/ui/datetimepicker";
 import { ImageSlider } from "@/components/ui/image-slider";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPropertyById, fetchPropertyImages } from "./api/properties";
+import { supabase } from "./lib/supabaseClient"; // Make sure this path is correct
 
 const formSchema = z.object({
-  firstName: z.string().min(2, {
-    message: "First name must be at least 2 characters.",
+  name: z.string().min(2, {
+    message: "Name must be at least 2 characters.",
   }),
-  lastName: z.string().min(2, {
-    message: "Last name must be at least 2 characters.",
+  number: z.string().min(10, {
+    message: "Please enter a valid phone number.",
   }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  dateTime: z.date({
+  date: z.date({
     required_error: "Please select a date and time.",
   }),
 });
@@ -53,10 +51,9 @@ export default function RenterForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      dateTime: undefined,
+      name: "",
+      number: "",
+      date: undefined,
     },
   });
 
@@ -85,31 +82,38 @@ export default function RenterForm() {
     );
   }
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    // try {
-    //   const { error } = await supabase.from("rental_applications").insert([
-    //     {
-    //       propertyid: id,
-    //       first_name: values.firstName,
-    //       last_name: values.lastName,
-    //       email: values.email,
-    //       status: "pending",
-    //     },
-    //   ]);
-    //   if (error) throw error;
-    //   toast({
-    //     title: "Application Submitted!",
-    //     description: "We'll be in touch soon.",
-    //     className:
-    //       "bg-white border-2 border-black bottom-0 fixed mb-4 left-1/2 -translate-x-1/2 w-[90vw] md:w-auto",
-    //   });
-    //   navigate("/home");
-    // } catch (error: any) {
-    //   toast({
-    //     variant: "destructive",
-    //     title: "Error",
-    //     description: error.message || "Failed to submit application.",
-    //   });
-    // }
+    try {
+      console.log('Submitting form with values:', values); // Debug log
+
+      const { error } = await supabase.from("leads").insert([
+        {
+          property: id,
+          name: values.name,
+          number: values.number,
+          date: values.date.toISOString(), // Convert Date to ISO string
+        },
+      ]);
+      
+      if (error) {
+        console.error('Supabase error:', error); // Debug log
+        throw error;
+      }
+      
+      toast({
+        title: "Application Submitted!",
+        description: "We'll be in touch soon.",
+        className: "bg-white border-2 border-black bottom-0 fixed mb-4 left-1/2 -translate-x-1/2 w-[90vw] md:w-auto",
+      });
+      
+      navigate("/");
+    } catch (error: any) {
+      console.error('Submission error:', error); // Debug log
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to submit application.",
+      });
+    }
   }
 
   if (isLoadingProperty) {
@@ -155,48 +159,14 @@ export default function RenterForm() {
         {/* Form */}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             <FormField
               control={form.control}
-              name="email"
+              name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Full Name</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="john@example.com"
-                      type="email"
-                      {...field}
-                    />
+                    <Input placeholder="John Doe" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -205,7 +175,21 @@ export default function RenterForm() {
 
             <FormField
               control={form.control}
-              name="dateTime"
+              name="number"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone Number</FormLabel>
+                  <FormControl>
+                    <Input placeholder="1234567890" type="tel" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="date"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Move-in Date & Time</FormLabel>

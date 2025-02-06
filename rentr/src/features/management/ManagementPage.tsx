@@ -12,9 +12,10 @@ import { supabase } from "@/lib/supabaseClient";
 type Renter = {
   id: string;
   name: string;
-  score: number;
-  email: string;
-  phone: string;
+  number: string;
+  date: string;
+  property: string;
+  created_at: string;
 };
 
 type Property = {
@@ -25,44 +26,51 @@ type Property = {
 };
 
 const RentersPage: React.FC = () => {
-  const { id} = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
-  const [renters, setRenters] = useState<Renter[]>([
-    { id: '1', name: "Emma Johnson", score: 95, email: "emma@example.com", phone: "555-1234" },
-    { id: '2', name: "Michael Chen", score: 88, email: "michael@example.com", phone: "555-5678" },
-    { id: '3', name: "Sarah Rodriguez", score: 82, email: "sarah@example.com", phone: "555-9012" },
-  ].sort((a, b) => b.score - a.score));
+  const [renters, setRenters] = useState<Renter[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    async function fetchProperty() {
+    async function fetchData() {
       try {
-        console.log(id);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
+        setLoading(true);
+        // Fetch property
+        const { data: propertyData, error: propertyError } = await supabase
           .from('property')
           .select('*')
           .eq('propertyid', id)
           .single();
 
-        if (error) throw error;
-        setProperty(data);
+        if (propertyError) throw propertyError;
+        setProperty(propertyData);
+
+        // Fetch leads for this property
+        const { data: leadsData, error: leadsError } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('property', id)
+          .order('created_at', { ascending: false });
+
+        if (leadsError) throw leadsError;
+        setRenters(leadsData);
+
       } catch (error) {
-        console.error('Error fetching property:', error);
+        console.error('Error fetching data:', error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to load property details",
+          description: "Failed to load data",
         });
       } finally {
         setLoading(false);
       }
     }
 
-    fetchProperty();
+    if (id) {
+      fetchData();
+    }
   }, [id]);
 
   const handleAddRenter = () => {
@@ -126,28 +134,41 @@ const RentersPage: React.FC = () => {
           </Button>
         </CardHeader>
       </Card>
-      {renters.map((renter) => (
-        <Card key={renter.id} className="w-full max-w-5xl mx-auto">
-          <CardContent className="flex flex-col md:flex-row items-start md:items-center p-4 md:p-6 space-y-4 md:space-y-0">
-            <div className="flex-grow space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-base md:text-lg font-semibold">{renter.name}</h3>
-                <Badge variant="secondary">{renter.score} Score</Badge>
-              </div>
-              <p className="text-xs md:text-sm text-muted-foreground">{renter.email}</p>
-              <p className="text-xs md:text-sm text-muted-foreground">{renter.phone}</p>
-            </div>
-            <div className="flex w-full md:w-auto space-x-2 md:space-x-4">
-              <Button variant="outline" onClick={() => navigate("/chat")} className="flex-1 md:flex-none">
-                <MessageCircle className="mr-2 size-4" /> Chat
-              </Button>
-              <Button className="flex-1 md:flex-none">
-                <FileText className="mr-2 size-4" /> Send Form
-              </Button>
-            </div>
+      {renters.length === 0 ? (
+        <Card className="w-full max-w-5xl mx-auto">
+          <CardContent className="p-6 text-center text-muted-foreground">
+            No applications received yet
           </CardContent>
         </Card>
-      ))}
+      ) : (
+        renters.map((renter) => (
+          <Card key={renter.id} className="w-full max-w-5xl mx-auto">
+            <CardContent className="flex flex-col md:flex-row items-start md:items-center p-4 md:p-6 space-y-4 md:space-y-0">
+              <div className="flex-grow space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-base md:text-lg font-semibold">{renter.name}</h3>
+                  <Badge variant="secondary">New Lead</Badge>
+                </div>
+                <p className="text-xs md:text-sm text-muted-foreground">{renter.number}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Preferred Date: {new Date(renter.date).toLocaleDateString()}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Applied: {new Date(renter.created_at).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="flex w-full md:w-auto space-x-2 md:space-x-4">
+                <Button variant="outline" className="flex-1 md:flex-none">
+                  <MessageCircle className="mr-2 size-4" /> Message
+                </Button>
+                <Button className="flex-1 md:flex-none">
+                  <FileText className="mr-2 size-4" /> Send Form
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))
+      )}
       <Toaster />
     </div>
   );

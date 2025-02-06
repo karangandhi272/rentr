@@ -1,47 +1,106 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import { Building2, RotateCw, UserPlus } from "lucide-react";
+import { Building2, Loader2, UserPlus } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
+
+type Lead = {
+  id: string;
+  name: string;
+  date: string;
+  property: string;
+  created_at: string;
+  property_details?: {
+    name: string;
+    address: string;
+  };
+};
 
 const HomePage = () => {
   const [date, setDate] = React.useState(new Date());
+  const [loading, setLoading] = useState(true);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [kpiData, setKpiData] = useState({
+    listingsOnMarket: 0,
+    leadsGenerated: 0
+  });
 
-  const todaysEvents = [
-    {
-      id: 1,
-      time: "09:00 - 10:30",
-      title: "Property Viewing - 123 Oak St",
-      type: "viewing",
-    },
-    {
-      id: 2,
-      time: "11:00 - 12:00",
-      title: "Client Meeting - Johnson Family",
-      type: "meeting",
-    },
-    {
-      id: 3,
-      time: "14:00 - 15:00",
-      title: "Property Photography - 456 Pine Ave",
-      type: "task",
-    },
-    {
-      id: 4,
-      time: "16:30 - 17:30",
-      title: "Open House Prep - 789 Maple Dr",
-      type: "task",
-    },
-  ];
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        // Get current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        if (!user) return;
 
-  const nextEvent = {
-    time: "09:00",
-    title: "Property Viewing - 123 Oak St",
-  };
+        // Get user's properties
+        const { data: properties, error: propertyError } = await supabase
+          .from('property')
+          .select('propertyid')
+          .eq('userid', user.id);
 
-  const kpiData = {
-    listingsOnMarket: 12,
-    leadsGenerated: 45,
-  };
+        if (propertyError) throw propertyError;
+        
+        // Update KPI for listings
+        setKpiData(prev => ({
+          ...prev,
+          listingsOnMarket: properties?.length || 0
+        }));
+
+        if (!properties?.length) return;
+
+        const propertyIds = properties.map(p => p.propertyid);
+
+        // Get leads with property details
+        const { data: leadsData, error: leadsError } = await supabase
+          .from('leads')
+          .select(`
+            *,
+            property_details:property(
+              name,
+              address
+            )
+          `)
+          .in('property', propertyIds)
+          .order('date', { ascending: true });
+
+        if (leadsError) throw leadsError;
+
+        setLeads(leadsData || []);
+        setKpiData(prev => ({
+          ...prev,
+          leadsGenerated: leadsData?.length || 0
+        }));
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  const todaysEvents = leads
+    .filter(lead => {
+      const leadDate = new Date(lead.date);
+      return leadDate.toDateString() === new Date().toDateString();
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const nextEvent = todaysEvents[0];
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="text-sm text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-6">
@@ -84,7 +143,6 @@ const HomePage = () => {
             <Calendar
               mode="single"
               selected={date}
-              // onSelect={setDate}
               className="rounded-md border"
             />
           </CardContent>
@@ -93,14 +151,16 @@ const HomePage = () => {
         <Card className="col-span-1">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Good Evening!</CardTitle>
+              <CardTitle>Today's Schedule</CardTitle>
               <p className="text-sm text-muted-foreground">
-                You have {todaysEvents.length} events planned for today.
+                You have {todaysEvents.length} viewings planned for today.
               </p>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Next up: {nextEvent.title} at {nextEvent.time}
-            </div>
+            {nextEvent && (
+              <div className="text-sm text-muted-foreground">
+                Next up: {nextEvent.property_details?.name} at {new Date(nextEvent.date).toLocaleTimeString()}
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -112,22 +172,24 @@ const HomePage = () => {
                   <div className="flex items-center gap-4">
                     <div className="w-2 h-2 rounded-full bg-blue-500" />
                     <div>
-                      <p className="text-sm font-medium">{event.title}</p>
+                      <p className="text-sm font-medium">
+                        {event.property_details?.name} - {event.name}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {event.time}
+                        {new Date(event.date).toLocaleTimeString()}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {event.property_details?.address}
                       </p>
                     </div>
                   </div>
-                  <button
-                    className="p-1 hover:bg-gray-100 rounded-full"
-                    onClick={() =>
-                      console.log("Clicked refresh for event:", event.id)
-                    }
-                  >
-                    <RotateCw className="h-4 w-4 text-muted-foreground" />
-                  </button>
                 </div>
               ))}
+              {todaysEvents.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center">
+                  No viewings scheduled for today
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
