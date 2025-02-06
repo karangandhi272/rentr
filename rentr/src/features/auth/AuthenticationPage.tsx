@@ -1,21 +1,24 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {Toaster} from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/contexts/AuthContext";
+import { SignUpData } from "@/types/auth.types";
 
 const AuthenticationPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signIn, signUp } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
 
   // Validation functions
   const validateEmail = (email: string) => {
@@ -32,33 +35,51 @@ const AuthenticationPage = () => {
     return password.length >= 6;
   };
 
-  const showToast = (title: string, description: string, variant: "default" | "destructive" = "default") => {
+  const showToast = (
+    title: string,
+    description: string,
+    variant: "default" | "destructive" = "default"
+  ) => {
     const isMobile = window.innerWidth <= 768;
     toast({
       title,
       description,
       variant,
-      className: isMobile ? "bg-white border-2 border-black bottom-0 fixed mb-4 left-1/2 -translate-x-1/2 w-[90vw]" : "",
+      className: isMobile
+        ? "bg-white border-2 border-black bottom-0 fixed mb-4 left-1/2 -translate-x-1/2 w-[90vw]"
+        : "",
     });
   };
 
-  const handleEmailAuth = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validation checks
     if (!email || !validateEmail(email)) {
-      showToast("Invalid Email", "Please enter a valid email address", "destructive");
+      showToast(
+        "Invalid Email",
+        "Please enter a valid email address",
+        "destructive"
+      );
       return;
     }
 
     if (!password || !validatePassword(password)) {
-      showToast("Invalid Password", "Password must be at least 6 characters long", "destructive");
+      showToast(
+        "Invalid Password",
+        "Password must be at least 6 characters long",
+        "destructive"
+      );
       return;
     }
 
     if (!isLogin) {
       if (!firstName.trim()) {
-        showToast("Missing First Name", "First name is required", "destructive");
+        showToast(
+          "Missing First Name",
+          "First name is required",
+          "destructive"
+        );
         return;
       }
 
@@ -68,69 +89,54 @@ const AuthenticationPage = () => {
       }
 
       if (!username || !validateUsername(username)) {
-        showToast("Invalid Username", "Username must be 3-16 characters, using only letters, numbers, and underscores", "destructive");
+        showToast(
+          "Invalid Username",
+          "Username must be 3-16 characters, using only letters, numbers, and underscores",
+          "destructive"
+        );
         return;
       }
     }
 
     try {
       if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-        
-        if (error) throw error;
-        
-        navigate(`/home`);
+        await signIn(email, password);
       } else {
-        const { data, error } = await supabase.auth.signUp({
+        const signUpData: SignUpData = {
           email,
           password,
-          options: {
-            data: {
-              first_name: firstName,
-              last_name: lastName,
-              username
-            }
-          }
-        });
+          name: `${firstName} ${lastName}`,
+          role: "user",
+        };
 
-        if (error) throw error;
-        
-        if (data.user) {
-          // Insert the user into our users table
-          const { error: insertError } = await supabase
-            .from('users')
-            .insert([
-              {
-                id: data.user.id,
-                name: `${firstName} ${lastName}`,
-              }
-            ]);
-
-          if (insertError) throw insertError;
-        }
-        
-        navigate(`/home`);
+        await signUp(signUpData);
       }
+      navigate("/dashboard");
     } catch (error: any) {
-      showToast("Authentication Error", error.message || 'An unexpected error occurred', "destructive");
+      toast({
+        title: "Authentication Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
   const handleOAuthSignIn = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
+        provider: "apple",
         options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
       });
-      
+
       if (error) throw error;
     } catch (error: any) {
-      showToast("OAuth Error", error.message || 'OAuth sign-in failed', "destructive");
+      showToast(
+        "OAuth Error",
+        error.message || "OAuth sign-in failed",
+        "destructive"
+      );
     }
   };
 
@@ -157,7 +163,9 @@ const AuthenticationPage = () => {
           <div className="relative z-20 mt-auto">
             <blockquote className="space-y-2">
               <p className="text-lg">
-                &ldquo;This library has saved me countless hours of work and helped me deliver stunning designs to my clients faster than ever before.&rdquo;
+                &ldquo;This library has saved me countless hours of work and
+                helped me deliver stunning designs to my clients faster than
+                ever before.&rdquo;
               </p>
               <footer className="text-sm">Sofia Davis</footer>
             </blockquote>
@@ -167,16 +175,16 @@ const AuthenticationPage = () => {
           <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
             <div className="flex flex-col space-y-2 text-center">
               <h1 className="text-xl md:text-2xl font-semibold tracking-tight">
-                {isLogin ? 'Login to your account' : 'Create an account'}
+                {isLogin ? "Login to your account" : "Create an account"}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {isLogin 
-                  ? 'Enter your email and password below' 
-                  : 'Enter your details to create an account'}
+                {isLogin
+                  ? "Enter your email and password below"
+                  : "Enter your details to create an account"}
               </p>
             </div>
             <div className="grid gap-4">
-              <form onSubmit={handleEmailAuth}>
+              <form onSubmit={handleSubmit}>
                 <div className="grid gap-3">
                   {!isLogin && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -259,7 +267,7 @@ const AuthenticationPage = () => {
                     />
                   </div>
                   <Button type="submit" className="h-9 md:h-10">
-                    {isLogin ? 'Sign In' : 'Create Account'}
+                    {isLogin ? "Sign In" : "Create Account"}
                   </Button>
                 </div>
               </form>
@@ -273,9 +281,9 @@ const AuthenticationPage = () => {
                   </span>
                 </div>
               </div>
-              <Button 
+              <Button
                 type="button"
-                variant="outline" 
+                variant="outline"
                 onClick={handleOAuthSignIn}
                 className="h-9 md:h-10"
               >
@@ -283,13 +291,15 @@ const AuthenticationPage = () => {
               </Button>
             </div>
             <p className="px-4 text-center text-xs md:text-sm text-muted-foreground">
-              {isLogin ? 'Don\'t have an account? ' : 'Already have an account? '}
-              <button 
+              {isLogin
+                ? "Don't have an account? "
+                : "Already have an account? "}
+              <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
                 className="underline underline-offset-4 hover:text-primary"
               >
-                {isLogin ? 'Sign up' : 'Sign in'}
+                {isLogin ? "Sign up" : "Sign in"}
               </button>
             </p>
           </div>

@@ -1,14 +1,17 @@
-import React from 'react';
-import AppRoutes from './app/routes';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from "react";
+import AppRoutes from "./app/routes";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "./contexts/AuthContext";
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient();
 
 const App: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppRoutes />
-    </QueryClientProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AppRoutes />
+      </QueryClientProvider>
+    </AuthProvider>
   );
 };
 

@@ -12,10 +12,10 @@ interface TimeSlot {
 // Add utility functions
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric'
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
   });
 };
 
@@ -31,7 +31,7 @@ const getDayPriority = (date: string) => {
     3: 2, // Wednesday
     4: 3, // Thursday
     5: 4, // Friday
-    6: 5  // Saturday
+    6: 5, // Saturday
   };
   return priorities[day];
 };
@@ -39,7 +39,7 @@ const getDayPriority = (date: string) => {
 const sortTimeSlots = (a: TimeSlot, b: TimeSlot) => {
   const dayPriorityA = getDayPriority(a.date);
   const dayPriorityB = getDayPriority(b.date);
-  
+
   if (dayPriorityA !== dayPriorityB) {
     return dayPriorityA - dayPriorityB;
   }
@@ -64,10 +64,10 @@ export default function AvailibilityPage() {
 
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3000/api/availability', {
-        method: 'POST',
+      const response = await fetch("http://localhost:3000/api/availability", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ availability }),
       });
@@ -78,7 +78,7 @@ export default function AvailibilityPage() {
 
       const data = await response.json();
       if (!data.success) {
-        throw new Error(data.error || 'Failed to process availability');
+        throw new Error(data.error || "Failed to process availability");
       }
 
       setSlots(data.data.slots);
@@ -117,11 +117,12 @@ Fridays: 10 AM - 3 PM"
                 className="min-h-[200px] resize-none"
               />
               <p className="text-sm text-muted-foreground mt-2">
-                Enter your availability in any format that's clear for renters to understand.
+                Enter your availability in any format that's clear for renters
+                to understand.
               </p>
             </div>
 
-            <Button 
+            <Button
               onClick={saveAvailability}
               className="w-full border-2 border-black mt-4"
               disabled={loading}
@@ -131,7 +132,9 @@ Fridays: 10 AM - 3 PM"
 
             {slots.length > 0 && (
               <div className="mt-8">
-                <h3 className="text-lg font-semibold mb-4">Available Time Slots</h3>
+                <h3 className="text-lg font-semibold mb-4">
+                  Available Time Slots
+                </h3>
                 <div className="space-y-4">
                   {Object.entries(
                     slots.reduce((acc: Record<string, TimeSlot[]>, slot) => {
@@ -142,21 +145,26 @@ Fridays: 10 AM - 3 PM"
                       return acc;
                     }, {})
                   )
-                  .sort(([a], [b]) => a.localeCompare(b))
-                  .map(([date, daySlots]: [string, TimeSlot[]]) => (
-                    <div key={date} className="border rounded-lg p-4">
-                      <h4 className="font-medium mb-2">{date}</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {daySlots
-                          .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                          .map((slot, index) => (
-                            <div key={`${date}-${index}`} className="text-sm text-gray-600">
-                              {slot.startTime} - {slot.endTime}
-                            </div>
-                          ))}
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([date, daySlots]: [string, TimeSlot[]]) => (
+                      <div key={date} className="border rounded-lg p-4">
+                        <h4 className="font-medium mb-2">{date}</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          {daySlots
+                            .sort((a, b) =>
+                              a.startTime.localeCompare(b.startTime)
+                            )
+                            .map((slot, index) => (
+                              <div
+                                key={`${date}-${index}`}
+                                className="text-sm text-gray-600"
+                              >
+                                {slot.startTime} - {slot.endTime}
+                              </div>
+                            ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </div>
             )}
