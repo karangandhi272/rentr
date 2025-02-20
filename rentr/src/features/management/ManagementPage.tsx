@@ -19,6 +19,32 @@ import { propertiesApi } from "@/api/properties";
 import { Lead } from "@/types/leads";
 import { leadsApi, leadsKeys } from "@/api/lead";
 
+export const listingsApi = {
+  postListing: async (property: Property) => {
+    const listingData = {
+      title: property.name,
+      description: property.description,
+      price: property.price,
+      location: property.address,
+      images: [], // TODO: Add property images
+    };
+
+    const response = await fetch("http://localhost:3000/api/listing", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(listingData),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to post listing");
+    }
+
+    return response.json();
+  },
+};
+
 const RentersPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [isCopied, setIsCopied] = React.useState(false);
@@ -50,6 +76,31 @@ const RentersPage: React.FC = () => {
     });
   };
 
+  const handlePostListing = async () => {
+    try {
+      if (!property) {
+        throw new Error("Property not found");
+      }
+      await listingsApi.postListing(property);
+      toast({
+        title: "Success!",
+        description: "Property listing has been posted",
+        duration: 3000,
+        className:
+          window.innerWidth <= 768
+            ? "bg-white border-2 border-black bottom-0 fixed mb-4 left-1/2 -translate-x-1/2 w-[90vw]"
+            : "",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to post listing",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
   if (propertyLoading || leadsLoading) {
     return <div>Loading...</div>;
   }
@@ -76,18 +127,27 @@ const RentersPage: React.FC = () => {
               </div>
             </div>
           </div>
-          <Button
-            variant="secondary"
-            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 transition-all duration-200"
-            onClick={handleAddRenter}
-          >
-            {isCopied ? (
-              <Check className="h-4 w-4 transition-all duration-200" />
-            ) : (
-              <Copy className="h-4 w-4 transition-all duration-200" />
-            )}{" "}
-            Copy Link
-          </Button>
+          <div className="flex space-x-2">
+            <Button
+              variant="secondary"
+              className="w-full md:w-auto bg-green-600 hover:bg-green-700 transition-all duration-200"
+              onClick={handlePostListing}
+            >
+              Post Listing
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 transition-all duration-200"
+              onClick={handleAddRenter}
+            >
+              {isCopied ? (
+                <Check className="h-4 w-4 transition-all duration-200" />
+              ) : (
+                <Copy className="h-4 w-4 transition-all duration-200" />
+              )}{" "}
+              Copy Link
+            </Button>
+          </div>
         </CardHeader>
       </Card>
       {leads!.length === 0 ? (
