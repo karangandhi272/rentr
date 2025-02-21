@@ -10,7 +10,7 @@ import {
   Check,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { useQuery } from "@tanstack/react-query";
@@ -47,6 +47,7 @@ export const listingsApi = {
 
 const RentersPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [isCopied, setIsCopied] = React.useState(false);
   const { data: property, isLoading: propertyLoading } = useQuery<Property>({
     queryFn: () => propertiesApi.fetchPropertyById(id!),
@@ -99,6 +100,10 @@ const RentersPage: React.FC = () => {
         duration: 3000,
       });
     }
+  };
+
+  const handleChatClick = (leadId: string) => {
+    navigate(`/chat/${leadId}`);
   };
 
   if (propertyLoading || leadsLoading) {
@@ -179,6 +184,13 @@ const RentersPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex w-full md:w-auto space-x-2 md:space-x-4">
+                <Button
+                  variant="outline"
+                  className="flex-1 md:flex-none"
+                  onClick={() => handleChatClick(lead.id.toString())}
+                >
+                  <MessageCircle className="mr-2 size-4" /> Chat
+                </Button>
                 {/* <Button variant="outline" className="flex-1 md:flex-none">
                   <MessageCircle className="mr-2 size-4" /> Message
                 </Button> */}

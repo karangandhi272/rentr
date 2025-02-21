@@ -23,6 +23,9 @@ const formSchema = z.object({
   name: z.string().min(2, {
     message: "Name must be at least 2 characters.",
   }),
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
   number: z.string().min(10, {
     message: "Please enter a valid phone number.",
   }),
@@ -44,6 +47,7 @@ export default function RenterForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      email: "",
       number: "",
       date: undefined,
     },
@@ -60,7 +64,7 @@ export default function RenterForm() {
     queryKey: ["propertyImages", id],
     queryFn: async () => {
       const images = await propertiesApi.fetchPropertyImages(id!);
-      console.log('Fetched images:', images); // Debug log
+      console.log("Fetched images:", images); // Debug log
       return images;
     },
     enabled: !!id,
@@ -88,6 +92,7 @@ export default function RenterForm() {
         {
           property: id,
           name: values.name,
+          email: values.email, // Add email to the submission
           number: values.number,
           date: values.date.toISOString(), // Convert Date to ISO string
         },
@@ -155,7 +160,7 @@ export default function RenterForm() {
                 <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
               </div>
             ) : images && images.length > 0 ? (
-              <ImageSlider images={images.map(img => img.url)} />
+              <ImageSlider images={images.map((img) => img.url)} />
             ) : (
               <div className="h-64 flex items-center justify-center bg-gray-100">
                 <p className="text-muted-foreground">No images available</p>
@@ -175,6 +180,24 @@ export default function RenterForm() {
                   <FormLabel>Full Name</FormLabel>
                   <FormControl>
                     <Input placeholder="John Doe" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email Address</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="you@example.com"
+                      type="email"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
