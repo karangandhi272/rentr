@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { chromium } from "playwright";
-import puppeteer from "puppeteer";
 // Type definitions
 interface ListingData {
   title: string;
@@ -27,6 +26,7 @@ interface ListingData {
   petPolicy?: "yes" | "no" | "limited";
 }
 
+// Log form state helper
 async function logFormState(page: any) {
   const formState = await page.evaluate(() => {
     const getElementInfo = (selector: string) => {
@@ -73,6 +73,7 @@ async function logFormState(page: any) {
   return formState;
 }
 
+// Handle location
 async function handleLocationSelection(page: any) {
   console.log("Starting location selection...");
 
@@ -115,24 +116,11 @@ async function handleLocationSelection(page: any) {
     }
 
     // If we get here, we need to handle location selection
-    // Wait for location menu and ensure it's loaded
     const locationMenu = page.locator("#LocationMenus");
     await locationMenu.waitFor({ state: "visible", timeout: 10000 });
 
-    // Debug current state
-    console.log("Location menu visible, checking structure...");
-    const menuStructure = await page.evaluate(() => {
-      const menu = document.querySelector("#LocationMenus");
-      return {
-        exists: !!menu,
-        children: menu ? Array.from(menu.children).map((c) => c.className) : [],
-        html: menu?.innerHTML,
-      };
-    });
-    console.log("Menu structure:", menuStructure);
+    console.log("Location menu visible... forcing location directly...");
 
-    // Force location directly
-    console.log("Setting location directly...");
     await page.evaluate(() => {
       // Set location ID
       const locationInput = document.querySelector(
@@ -153,9 +141,7 @@ async function handleLocationSelection(page: any) {
       }
 
       // Set city
-      const cityInput = document.querySelector(
-        "#pstad-city"
-      ) as HTMLInputElement;
+      const cityInput = document.querySelector("#pstad-city") as HTMLInputElement;
       if (cityInput) {
         cityInput.value = "Montreal";
       }
@@ -167,10 +153,9 @@ async function handleLocationSelection(page: any) {
       }
     });
 
-    // Wait a bit for the form to update
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1000); // short wait
 
-    // Click Go button if needed
+    // Click Go button if visible
     const goButton = page.locator("#LocUpdate");
     if (await goButton.isVisible()) {
       console.log("Clicking Go button...");
@@ -178,26 +163,23 @@ async function handleLocationSelection(page: any) {
       await page.waitForLoadState("networkidle");
     }
 
-    // Verify location was set
+    // Double-check location
     const locationSet = await page.evaluate(() => {
       const locationInput = document.querySelector(
         "#LocationIdInput"
       ) as HTMLInputElement;
       return locationInput?.value === "1700281";
     });
-
     console.log("Location set successfully:", locationSet);
 
-    // Wait for any post-location-selection updates
     await page.waitForLoadState("networkidle");
 
-    // Add additional verification
     const success = await page.evaluate(() => {
       // Check if we're on the form page
       if (document.querySelector("#postad-title")) {
         return true;
       }
-      // Check if location was set
+      // or location was set
       const locationInput = document.querySelector(
         "#LocationIdInput"
       ) as HTMLInputElement;
@@ -205,9 +187,7 @@ async function handleLocationSelection(page: any) {
     });
 
     if (!success) {
-      console.log(
-        "Location selection may have failed, attempting direct navigation"
-      );
+      console.log("Location selection may have failed, navigating directly...");
       await page.goto(
         "https://www.kijiji.ca/p-post-ad.html?categoryId=37&locationId=1700281"
       );
@@ -216,7 +196,6 @@ async function handleLocationSelection(page: any) {
   } catch (error) {
     console.error("Location handling error:", error);
     // Attempt recovery by direct navigation
-    console.log("Attempting recovery through direct navigation");
     await page.goto(
       "https://www.kijiji.ca/p-post-ad.html?categoryId=37&locationId=1700281"
     );
@@ -224,346 +203,243 @@ async function handleLocationSelection(page: any) {
   }
 }
 
-async function verifyAndClick(page: any, selector: string, name: string) {
-  try {
-    console.log(`Attempting to click ${name}...`);
-    await page.waitForSelector(selector, { state: "attached", timeout: 5000 });
-    const element = page.locator(selector);
-
-    // Log element state
-    const state = await element.evaluate((el: any) => ({
-      isConnected: el.isConnected,
-      isVisible: el.offsetParent !== null,
-      disabled: el.disabled,
-      checked: el.checked,
-      html: el.outerHTML,
-    }));
-    console.log(`${name} state:`, state);
-
-    await element.click({ force: true });
-    console.log(`${name} clicked successfully`);
-    await page.waitForTimeout(500);
-  } catch (error) {
-    console.error(`Error clicking ${name}:`, error);
-    // Fallback to JavaScript click
-    await page.evaluate((sel: string) => {
-      const el = document.querySelector(sel) as HTMLElement;
-      if (el) {
-        el.click();
-        console.log("Fallback click succeeded");
-      }
-    }, selector);
-  }
+// Fill the location field
+async function fillLocationField(page: any, locationText: string) {
+  console.log("Filling location field with:", locationText);
+  // Wait for the location textarea to be visible
+  const locationLocator = page.locator("textarea#location");
+  await locationLocator.waitFor({ state: "visible", timeout: 10000 });
+  
+  // Fill the textarea with the address from data.location
+  await page.fill("textarea#location", locationText);
+  
+  // Wait for the autocomplete suggestion container to appear
+  // await page.waitForSelector("#LocationSelector-menu", { timeout: 10000 });
+  // Short delay to ensure suggestions are populated
+  await page.waitForTimeout(500);
+  
+  // Click the first suggestion (id="LocationSelector-item-0")
+  await page.click("#LocationSelector-item-0");
+  
+  // Optional: wait a bit for the selection to register
+  await page.waitForTimeout(500);
+  console.log("Location selected via autocomplete.");
 }
 
-async function fillFormFields(page: any, listingData: ListingData) {
-  console.log("Starting form fill with verification...");
-
-  try {
-    await page.waitForLoadState("networkidle");
-
-    // First validate that listingData has all required fields
-    if (!listingData.utilities) {
-      listingData.utilities = {
-        hydro: false,
-        water: false,
-        internet: false,
-        heat: false,
-      };
-    }
-
-    // Fill form using JavaScript evaluation for better reliability
-    await page.evaluate((data) => {
-      function clickRadio(name: string, value: string) {
-        const radio = document.querySelector(
-          `input[name="${name}"][value="${value}"]`
-        ) as HTMLInputElement;
-        if (radio) {
-          radio.checked = true;
-          radio.dispatchEvent(new Event("change", { bubbles: true }));
-          console.log(`Set ${name} to ${value}`);
-        } else {
-          console.log(`Radio not found: ${name} ${value}`);
-        }
-      }
-
-      function setSelect(name: string, value: string) {
-        const select = document.querySelector(
-          `select[name="${name}"]`
-        ) as HTMLSelectElement;
-        if (select) {
-          select.value = value;
-          select.dispatchEvent(new Event("change", { bubbles: true }));
-          console.log(`Set ${name} to ${value}`);
-        } else {
-          console.log(`Select not found: ${name}`);
-        }
-      }
-
-      // Basic Info - simplified unit type
-      clickRadio("postAdForm.adType", "OFFER");
-      clickRadio("postAdForm.forrentby", "ownr");
-      clickRadio("postAdForm.unittype", data.propertyType || "apartment");
-
-      // Property Details
-      setSelect("postAdForm.attributeMap[numberbedrooms_s]", data.bedrooms);
-      setSelect("postAdForm.attributeMap[numberbathrooms_s]", data.bathrooms);
-
-      // Updated parking spots mapping
-      function setParkingSpots(value: string) {
-        const parkingMap: { [key: string]: string } = {
-          "0": "0",
-          "1": "1",
-          "2": "2",
-          "3": "3",
-          "4": "4",
-          "5": "5",
-          "6+": "6",
-          underground: "7",
-          garage: "8",
-        };
-        setSelect(
-          "postAdForm.attributeMap[numberparkingspots_s]",
-          parkingMap[value] || "0"
-        );
-      }
-
-      // Set parking spots
-      setParkingSpots(data.parkingSpots);
-
-      // Agreement Type
-      clickRadio("postAdForm.agreement", "month-to-month");
-
-      // Move-in Date
-      const dateInput = document.querySelector(
-        'input[name="postAdForm.attributeMap[dateavailable_tdt]"]'
-      ) as HTMLInputElement;
-      if (dateInput) {
-        const date = data.moveInDate ? new Date(data.moveInDate) : new Date();
-        const formattedDate = `${date.getDate().toString().padStart(2, "0")}/${(
-          date.getMonth() + 1
-        )
-          .toString()
-          .padStart(2, "0")}/${date.getFullYear()}`;
-        dateInput.value = formattedDate;
-        dateInput.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-
-      // Pet policy with all options
-      const petValue = (() => {
-        switch (data.petPolicy) {
-          case "yes":
-            return "1";
-          case "no":
-            return "0";
-          case "limited":
-            return "limited";
-          default:
-            return data.petFriendly ? "1" : "0";
-        }
-      })();
-      clickRadio("postAdForm.attributeMap[petsallowed_s]", petValue);
-
-      // Smoking policy
-      const smokingValue = (() => {
-        switch (data.smokingPermitted) {
-          case "yes":
-            return "1";
-          case "no":
-            return "0";
-          case "outdoors":
-            return "2";
-          default:
-            return "0";
-        }
-      })();
-      clickRadio("postAdForm.attributeMap[smokingpermitted_s]", smokingValue);
-
-      // Size
-      const sizeInput = document.querySelector(
-        "#areainfeet_i"
-      ) as HTMLInputElement;
-      if (sizeInput) {
-        sizeInput.value = "700";
-        sizeInput.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-
-      // Furnished
-      clickRadio("postAdForm.furnished", data.furnished ? "1" : "0");
-
-      // Utilities
-      function setCheckbox(id: string, value: boolean) {
-        const checkbox = document.querySelector(`#${id}`) as HTMLInputElement;
-        if (checkbox) {
-          checkbox.checked = value;
-          checkbox.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-      }
-
-      setCheckbox("hydro_s", data.utilities.hydro);
-      setCheckbox("water_s", data.utilities.water);
-      setCheckbox("heat_s", data.utilities.heat);
-      setCheckbox("internet_s", data.utilities.internet);
-
-      // Main Content
-      const titleInput = document.querySelector(
-        ".input-50421121"
-      ) as HTMLInputElement;
-      const descInput = document.querySelector(
-        ".textArea-185211136"
-      ) as HTMLTextAreaElement;
-      const priceInput = document.querySelector(
-        "#PriceAmount"
-      ) as HTMLInputElement;
-
-      if (titleInput) {
-        titleInput.value = data.title;
-        titleInput.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-      if (descInput) {
-        descInput.value = data.description;
-        descInput.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-      if (priceInput) {
-        priceInput.value = data.price.toString();
-        priceInput.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-
-      // Property Type - using the correct radio values
-      const propertyTypeMap: { [key: string]: string } = {
-        apartment: "apartment",
-        condo: "condo",
-        basement: "basement-apartment",
-        house: "house",
-        townhouse: "townhouse",
-        duplex: "duplex-triplex",
-        triplex: "duplex-triplex",
-      };
-      const mappedPropertyType =
-        propertyTypeMap[data.propertyType] || "apartment";
-      clickRadio("postAdForm.attributeMap[unittype_s]", mappedPropertyType);
-
-      // Agreement Type
-      clickRadio(
-        "postAdForm.attributeMap[agreementtype_s]",
-        data.agreementType || "month-to-month"
-      );
-      // Add bedroom mapping
-      function setBedrooms(value: string) {
-        const bedroomMap: { [key: string]: string } = {
-          bachelor: "0",
-          studio: "0",
-          "0": "0",
-          "1": "1",
-          "1+den": "1.5",
-          "1.5": "1.5",
-          "2": "2",
-          "2+den": "2.5",
-          "2.5": "2.5",
-          "3": "3",
-          "3+den": "3.5",
-          "3.5": "3.5",
-          "4": "4",
-          "4+den": "4.5",
-          "4.5": "4.5",
-          "5": "5",
-          "5+": "5",
-        };
-
-        const mappedValue = bedroomMap[value.toString().toLowerCase()] || "1";
-        console.log("Setting bedrooms:", value, "->", mappedValue);
-        setSelect("postAdForm.attributeMap[numberbedrooms_s]", mappedValue);
-      }
-
-      // Set bedrooms using the new mapping function
-      setBedrooms(data.bedrooms);
-
-      // Bathrooms - using select with numeric values
-      function setBathrooms(value: string) {
-        const bathroomMap: { [key: string]: string } = {
-          "1": "10",
-          "1.5": "15",
-          "2": "20",
-          "2.5": "25",
-          "3": "30",
-          "3.5": "35",
-          "4": "40",
-          "4.5": "45",
-          "5": "50",
-          "5.5": "55",
-          "6": "60",
-        };
-        setSelect(
-          "postAdForm.attributeMap[numberbathrooms_s]",
-          bathroomMap[value] || "10"
-        );
-      }
-      setBathrooms(data.bathrooms);
-
-      // Air Conditioning
-      clickRadio(
-        "postAdForm.attributeMap[airconditioning_s]",
-        data.airConditioning ? "1" : "0"
-      );
-
-      // Furnished status
-      clickRadio(
-        "postAdForm.attributeMap[furnished_s]",
-        data.furnished ? "1" : "0"
-      );
-    }, listingData);
-
-    // Remove the extra property type mapping section that was added
-    // Delete or comment out the following block:
-    /*
-    const propertyTypeMap: { [key: string]: string } = {
-      apartment: "apartment",
-      // ...
-    };
-    const mappedPropertyType = propertyTypeMap[listingData.propertyType] || "apartment";
-    // ... related property type code ...
-    */
-
-    // Verify the selection
-    await page.waitForTimeout(500);
-    const isSelected = await page.evaluate((type) => {
+// Fill the dynamic form fields first (except title/desc/price)
+async function fillDynamicFields(page: any, listingData: ListingData) {
+  await page.evaluate((data) => {
+    function clickRadio(name: string, value: string) {
       const radio = document.querySelector(
-        `input[value="${type}"]`
+        `input[name="${name}"][value="${value}"]`
       ) as HTMLInputElement;
-      return radio?.checked || false;
-    }, mappedPropertyType);
-
-    if (!isSelected) {
-      console.log("Fallback: Trying direct click on property type radio");
-      await page.click(`input[value="${mappedPropertyType}"]`, { force: true });
+      if (radio) {
+        radio.checked = true;
+        radio.dispatchEvent(new Event("change", { bubbles: true }));
+        console.log(`Set ${name} = ${value}`);
+      }
     }
 
-    // Handle images separately
-
-    // Wait for form to settle
-    await page.waitForTimeout(1000);
-    console.log("Form filling completed");
-
-    // Select the package before submitting
-    try {
-      console.log("Selecting package...");
-      await page.click('button[data-testid="package-0-bottom-select"]');
-      await page.waitForLoadState("networkidle");
-      await page.waitForTimeout(1000);
-    } catch (error) {
-      console.error("Error selecting package:", error);
-      throw error;
+    function setSelect(name: string, value: string) {
+      const select = document.querySelector(
+        `select[name="${name}"]`
+      ) as HTMLSelectElement;
+      if (select) {
+        select.value = value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        console.log(`Set ${name} = ${value}`);
+      }
     }
 
-    return true;
-  } catch (error) {
-    console.error("Form filling error:", error);
-    await page.screenshot({
-      path: `form-error-${Date.now()}.png`,
-      fullPage: true,
-    });
-    throw error;
-  }
+    // Basic info
+    clickRadio("postAdForm.adType", "OFFER");
+    clickRadio("postAdForm.forrentby", "ownr");
+
+    // If there's a top-level property type radio (unittype)
+    clickRadio("postAdForm.unittype", data.propertyType || "apartment");
+
+    // Now handle property details
+    setSelect("postAdForm.attributeMap[numberbedrooms_s]", data.bedrooms);
+    setSelect("postAdForm.attributeMap[numberbathrooms_s]", data.bathrooms);
+
+    // Parking mapping
+    function setParkingSpots(value: string) {
+      const parkingMap: Record<string, string> = {
+        "0": "0",
+        "1": "1",
+        "2": "2",
+        "3": "3",
+        "4": "4",
+        "5": "5",
+        "6+": "6",
+        underground: "7",
+        garage: "8",
+      };
+      return parkingMap[value] || "0";
+    }
+    setSelect(
+      "postAdForm.attributeMap[numberparkingspots_s]",
+      setParkingSpots(data.parkingSpots)
+    );
+
+    // Agreement
+    clickRadio("postAdForm.agreement", "month-to-month");
+
+    // Move-in date
+    const dateInput = document.querySelector(
+      'input[name="postAdForm.attributeMap[dateavailable_tdt]"]'
+    ) as HTMLInputElement;
+    if (dateInput) {
+      const date = data.moveInDate ? new Date(data.moveInDate) : new Date();
+      const formattedDate = `${String(date.getDate()).padStart(2, "0")}/${String(
+        date.getMonth() + 1
+      ).padStart(2, "0")}/${date.getFullYear()}`;
+      dateInput.value = formattedDate;
+      dateInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    // Pet policy
+    const petValue = (() => {
+      switch (data.petPolicy) {
+        case "yes":
+          return "1";
+        case "no":
+          return "0";
+        case "limited":
+          return "limited";
+        default:
+          return data.petFriendly ? "1" : "0";
+      }
+    })();
+    clickRadio("postAdForm.attributeMap[petsallowed_s]", petValue);
+
+    // Smoking
+    const smokingValue = (() => {
+      switch (data.smokingPermitted) {
+        case "yes":
+          return "1";
+        case "no":
+          return "0";
+        case "outdoors":
+          return "2";
+        default:
+          return "0";
+      }
+    })();
+    clickRadio("postAdForm.attributeMap[smokingpermitted_s]", smokingValue);
+
+    // Size
+    const sizeInput = document.querySelector("#areainfeet_i") as HTMLInputElement;
+    if (sizeInput) {
+      sizeInput.value = "700";
+      sizeInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    // Furnished
+    clickRadio("postAdForm.furnished", data.furnished ? "1" : "0");
+
+    // Utilities (checkboxes)
+    function setCheckbox(id: string, value: boolean) {
+      const checkbox = document.querySelector(`#${id}`) as HTMLInputElement;
+      if (checkbox) {
+        checkbox.checked = value;
+        checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+    setCheckbox("hydro_s", data.utilities.hydro);
+    setCheckbox("water_s", data.utilities.water);
+    setCheckbox("heat_s", data.utilities.heat);
+    setCheckbox("internet_s", data.utilities.internet);
+
+    // Kijiji "attributeMap" property type radio
+    const propertyTypeMap: Record<string, string> = {
+      apartment: "apartment",
+      condo: "condo",
+      basement: "basement-apartment",
+      house: "house",
+      townhouse: "townhouse",
+      duplex: "duplex-triplex",
+      triplex: "duplex-triplex",
+    };
+    const mappedPropertyType = propertyTypeMap[data.propertyType] || "apartment";
+    clickRadio("postAdForm.attributeMap[unittype_s]", mappedPropertyType);
+
+    // Agreement type
+    clickRadio(
+      "postAdForm.attributeMap[agreementtype_s]",
+      data.agreementType || "month-to-month"
+    );
+
+    // Bedrooms mapping
+    function setBedrooms(value: string) {
+      const bedroomMap: Record<string, string> = {
+        bachelor: "0",
+        studio: "0",
+        "0": "0",
+        "1": "1",
+        "1+den": "1.5",
+        "1.5": "1.5",
+        "2": "2",
+        "2+den": "2.5",
+        "2.5": "2.5",
+        "3": "3",
+        "3+den": "3.5",
+        "3.5": "3.5",
+        "4": "4",
+        "4+den": "4.5",
+        "4.5": "4.5",
+        "5": "5",
+        "5+": "5",
+      };
+      return bedroomMap[value.toLowerCase()] || "1";
+    }
+    const mappedBedrooms = setBedrooms(data.bedrooms);
+    setSelect("postAdForm.attributeMap[numberbedrooms_s]", mappedBedrooms);
+
+    // Bathrooms mapping
+    function setBathrooms(value: string) {
+      const bathroomMap: Record<string, string> = {
+        "1": "10",
+        "1.5": "15",
+        "2": "20",
+        "2.5": "25",
+        "3": "30",
+        "3.5": "35",
+        "4": "40",
+        "4.5": "45",
+        "5": "50",
+        "5.5": "55",
+        "6": "60",
+      };
+      return bathroomMap[value] || "10";
+    }
+    const mappedBathrooms = setBathrooms(data.bathrooms);
+    setSelect("postAdForm.attributeMap[numberbathrooms_s]", mappedBathrooms);
+
+    // Air Conditioning
+    clickRadio(
+      "postAdForm.attributeMap[airconditioning_s]",
+      data.airConditioning ? "1" : "0"
+    );
+
+    // Furnished
+    clickRadio("postAdForm.attributeMap[furnished_s]", data.furnished ? "1" : "0");
+  }, listingData);
+
+  // Wait a bit for any dynamic re-renders
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(500);
+}
+
+// Fill title, description, and price with "page.fill" so they won't be reset on focus
+async function fillTextFields(page: any, listingData: ListingData) {
+  // Fill using Playwright's built-in method, which fires all expected events
+  await page.fill("#postad-title", listingData.title);
+  await page.fill("#pstad-descrptn", listingData.description);
+  await page.fill("#PriceAmount", listingData.price.toString());
+
+  // Optional short wait to ensure the form “registers” the input
+  await page.waitForTimeout(500);
 }
 
 async function postToKijiji(listingData: ListingData) {
@@ -572,14 +448,11 @@ async function postToKijiji(listingData: ListingData) {
     channel: "chrome",
   });
 
-  const context = await browser.newContext({
-    viewport: { width: 1366, height: 768 },
-  });
-
+  const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
   const page = await context.newPage();
 
   try {
-    // Handle login
+    // 1. Log in
     await page.goto(process.env.KIJIJI_LOGIN_URL!);
     await page.waitForLoadState("networkidle");
 
@@ -590,32 +463,48 @@ async function postToKijiji(listingData: ListingData) {
     // Wait for login completion
     await page.waitForURL(/kijiji\.ca\/(?!.*login).*/, { timeout: 30000 });
 
-    // Navigate directly to the form with location
+    // 2. Navigate directly to the form with location
     await page.goto(
       "https://www.kijiji.ca/p-post-ad.html?categoryId=37&locationId=1700281"
     );
     await page.waitForLoadState("networkidle");
 
-    // Only call handleLocationSelection if we're not already on the form
+    // 3. Handle location if needed
     const isFormPage = await page.evaluate(() => {
       return !!document.querySelector("#postad-title, #PriceAmount");
     });
-
     if (!isFormPage) {
       await handleLocationSelection(page);
     }
 
-    // Log form state before filling
+    // 4. Log state before filling
     console.log("Form state before filling:");
     await logFormState(page);
 
-    // Use new comprehensive form filling function
-    await fillFormFields(page, listingData);
+    await fillLocationField(page, listingData.location);
 
-    // Submit form
+    // 5. Fill all dynamic fields (radio, selects, etc.)
+    await fillDynamicFields(page, listingData);
+
+    // 6. Now fill text fields last
+    await fillTextFields(page, listingData);
+
+    // 7. Log form state again to confirm
+    console.log("Form state after filling:");
+    await logFormState(page);
+
+    // 8. Select a package, submit, etc.
+    console.log("Selecting package...");
+    await page.click('button[data-testid="package-0-bottom-select"]');
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(1000);
+
     console.log("Submitting form...");
     await page.click('button[data-testid="checkout-post-btn"]');
     await page.waitForLoadState("networkidle");
+
+    // await context.close();
+    // await browser.close();
 
     return { success: true, platform: "Kijiji" };
   } catch (error) {
@@ -623,7 +512,6 @@ async function postToKijiji(listingData: ListingData) {
       message: (error as Error).message,
       url: await page.url(),
       stack: (error as Error).stack,
-      lastFormState: await logFormState(page),
     });
 
     // Take error screenshot
@@ -632,13 +520,14 @@ async function postToKijiji(listingData: ListingData) {
       fullPage: true,
     });
 
+    await context.close();
+    await browser.close();
+
     return {
       success: false,
       platform: "Kijiji",
       error: (error as Error).message,
-      formState: await logFormState(page),
     };
-  } finally {
   }
 }
 
@@ -659,12 +548,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // Post to all platforms concurrently
-    const results = await Promise.all([postToKijiji(listingData)]);
+    // Populate defaults
+    if (!listingData.bedrooms) listingData.bedrooms = "1";
+    if (!listingData.bathrooms) listingData.bathrooms = "1";
+    if (!listingData.propertyType) listingData.propertyType = "apartment";
+    if (!listingData.utilities) {
+      listingData.utilities = {
+        hydro: false,
+        water: false,
+        internet: false,
+        heat: false,
+      };
+    }
+
+    // Post to Kijiji
+    const kijijiResult = await postToKijiji(listingData);
 
     return NextResponse.json({
       success: true,
-      results,
+      results: [kijijiResult],
     });
   } catch (error) {
     console.error("Error processing listing:", error);
