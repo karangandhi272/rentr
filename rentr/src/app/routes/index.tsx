@@ -12,6 +12,7 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import AvailibilityPage from "@/features/availability/AvailibilityPage";
 import PropertiesPage from "@/features/properties/PropertiesPage";
 import CalendarPage from "@/features/calendar/CalendarPage";
+import ChatPage from "@/features/chat/ChatPage";
 
 const AppRoutes = () => {
   return (
@@ -30,6 +31,7 @@ const AppRoutes = () => {
           <Route path="/manage/:id" element={<ManagementPage />} />
           <Route path="/availability-settings" element={<AvailibilityPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/chat/:leadId" element={<ChatPage />} />
         </Route>
 
         <Route element={<ProtectedRoute layout="minimal" />}>
