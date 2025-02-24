@@ -58,7 +58,7 @@ export default function ChatPage() {
   const { data: emailStatus } = useQuery({
     queryKey: ["emailStatus"],
     queryFn: async () => {
-      const response = await fetch("/api/emailService", {
+      const response = await fetch("http://localhost:3000/api/emailService", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "status" }),
@@ -72,28 +72,28 @@ export default function ChatPage() {
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ["chat_messages", leadId],
     queryFn: async () => {
-      if (
-        !leadDetails?.property ||
-        !leadDetails.email ||
-        !emailStatus?.isConnected
-      )
+      if (!leadDetails?.property || !leadDetails.email || !emailStatus?.isConnected)
         return [];
 
-      const response = await fetch("/api/emailService", {
+      // Fetch messages via IMAP
+      const response = await fetch("http://localhost:3000/api/emailService", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify({ 
           action: "getMessages",
-          propertyId: leadDetails.property,
           leadEmail: leadDetails.email,
+          propertyId: leadDetails.property 
         }),
       });
+      if (!response.ok) throw new Error("Failed to fetch messages");
+      const messages = await response.json();
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch messages");
-      }
-
-      return response.json();
+      // Sort messages by date
+      return messages.sort((a: { sent_at: any; received_at: any; }, b: { sent_at: any; received_at: any; }) => {
+        const dateA = new Date(a.sent_at || a.received_at || 0);
+        const dateB = new Date(b.sent_at || b.received_at || 0);
+        return dateA.getTime() - dateB.getTime();
+      });
     },
     enabled: !!leadDetails && emailStatus?.isConnected,
     refetchInterval: emailStatus?.isConnected ? 10000 : false,
@@ -113,7 +113,7 @@ export default function ChatPage() {
     if (!inputMessage.trim() || !leadDetails || !user?.email) return;
 
     try {
-      const response = await fetch("/api/emailService", {
+      const response = await fetch("http://localhost:3000/api/emailService", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -6,6 +6,7 @@ import {
   ChevronRight,
   House,
   Settings,
+  Wrench, // Add this import
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NavItem } from "./types";
@@ -15,6 +16,10 @@ import { toast } from "@/hooks/use-toast";
 import { DashboardIcon } from "@radix-ui/react-icons";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+
+interface Profile {
+  full_name: string;
+}
 
 const navItems: NavItem[] = [
   {
@@ -31,6 +36,11 @@ const navItems: NavItem[] = [
     icon: <House className="size-5" />,
     label: "Properties",
     href: "/properties",
+  },
+  {
+    icon: <Wrench className="size-5" />,
+    label: "Technicians",
+    href: "/tech",
   },
   {
     icon: <Settings className="size-5" />,
@@ -155,6 +165,7 @@ export function Sidebar({
         />
       </aside>
 
+      {/* Update the mobile navigation bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-40 flex justify-around p-2 shadow-lg">
         {navItems.map((item) => (
           <Button
@@ -162,10 +173,9 @@ export function Sidebar({
             variant={isActiveRoute(item.href) ? "secondary" : "ghost"}
             size="icon"
             onClick={() => navigate(item.href)}
-            className="flex flex-col items-center justify-center h-full"
+            className="h-10 w-10" // Updated size classes
           >
             {item.icon}
-            <span className="text-xs mt-1">{item.label}</span>
           </Button>
         ))}
       </div>

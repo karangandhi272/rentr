@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabaseClient";
+import { Settings } from "lucide-react"; // Add this import
+import { useNavigate } from "react-router-dom"; // Add this import
 
 interface TimeSlot {
   date: string;
@@ -52,6 +54,7 @@ export default function AvailibilityPage() {
   const [availability, setAvailability] = useState("");
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate(); // Add this hook
 
   const saveAvailability = async () => {
     if (!availability.trim()) {
@@ -143,6 +146,14 @@ export default function AvailibilityPage() {
 
   return (
     <div className="md:ml-16 p-4 md:p-8">
+      {/* Add mobile settings button */}
+      <button 
+        onClick={() => navigate('/settings')}
+        className="md:hidden fixed top-4 right-4 p-2 rounded-full hover:bg-gray-100"
+      >
+        <Settings className="h-6 w-6 text-gray-600" />
+      </button>
+
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
           <h2 className="text-2xl font-bold mb-6">Set Your Availability</h2>

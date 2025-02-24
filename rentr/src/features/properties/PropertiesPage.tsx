@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useProperties } from "./hooks/useProperties";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Archive } from "lucide-react"; // Add Archive import
 import { useState } from "react";
 
 const PropertiesPage = () => {
@@ -19,9 +19,20 @@ const PropertiesPage = () => {
 
   return (
     <div className="w-full flex flex-col px-4 sm:px-8">
-      <h1 className="text-2xl font-semibold text-primary-foreground mb-4">
-        Properties
-      </h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-semibold text-primary-foreground">
+          Properties
+        </h1>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/archived-properties")}
+          className="flex items-center gap-2"
+        >
+          <Archive className="h-4 w-4" />
+          <span className="hidden sm:inline">Archived</span>
+        </Button>
+      </div>
       <div className="w-full flex justify-between mb-4 mt-4">
         <div className="relative max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />

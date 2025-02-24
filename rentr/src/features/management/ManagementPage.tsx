@@ -8,6 +8,7 @@ import {
   DollarSign,
   Copy,
   Check,
+  ClipboardCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useParams, useNavigate } from "react-router-dom";
@@ -106,6 +107,27 @@ const RentersPage: React.FC = () => {
     navigate(`/chat/${leadId}`);
   };
 
+  const handlePrecheck = async (lead: Lead) => {
+    try {
+      await leadsApi.sendPrecheckEmail(lead.id.toString(), lead.email);
+      toast({
+        title: "Success!",
+        description: "Precheck email has been sent",
+        duration: 3000,
+        className: window.innerWidth <= 768
+          ? "bg-white border-2 border-black bottom-0 fixed mb-4 left-1/2 -translate-x-1/2 w-[90vw]"
+          : "",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send precheck email",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
   if (propertyLoading || leadsLoading) {
     return <div>Loading...</div>;
   }
@@ -191,12 +213,13 @@ const RentersPage: React.FC = () => {
                 >
                   <MessageCircle className="mr-2 size-4" /> Chat
                 </Button>
-                {/* <Button variant="outline" className="flex-1 md:flex-none">
-                  <MessageCircle className="mr-2 size-4" /> Message
-                </Button> */}
-                {/* <Button className="flex-1 md:flex-none">
-                  <FileText className="mr-2 size-4" /> Send Form
-                </Button> */}
+                <Button
+                  variant="outline"
+                  className="flex-1 md:flex-none"
+                  onClick={() => handlePrecheck(lead)}
+                >
+                  <ClipboardCheck className="mr-2 size-4" /> Precheck
+                </Button>
               </div>
             </CardContent>
           </Card>
