@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignUpData } from "@/types/auth.types";
+import { Building2 } from "lucide-react";
 
 const AuthenticationPage = () => {
   const navigate = useNavigate();
@@ -111,7 +112,7 @@ const AuthenticationPage = () => {
 
         await signUp(signUpData);
       }
-      navigate("/home");
+      navigate("/dashboard");
     } catch (error: any) {
       toast({
         title: "Authentication Error",
@@ -146,18 +147,7 @@ const AuthenticationPage = () => {
         <div className="relative hidden h-full flex-col bg-muted p-10 text-white dark:border-r lg:flex">
           <div className="absolute inset-0 bg-zinc-900" />
           <div className="relative z-20 flex items-center text-lg font-medium">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mr-2 h-6 w-6"
-            >
-              <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
-            </svg>
+            <Building2 className="h-8 w-10 text-zinc-800 ph-1" stroke="white" />
             Rentr
           </div>
           <div className="relative z-20 mt-auto">
