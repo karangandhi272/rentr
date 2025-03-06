@@ -29,6 +29,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+error-*.png
+form-error-*.png
+location-error-*.png
 
 # env files (can opt-in for committing if needed)
 .env*
