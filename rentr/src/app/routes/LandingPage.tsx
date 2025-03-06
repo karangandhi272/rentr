@@ -92,7 +92,7 @@ const LandingPage = () => {
               </a>
               <Button
                 variant="default"
-                className="bg-zinc-900 hover:bg-zinc-800"
+                className="bg-zinc-900 hover:bg-zinc-800 text-white"
                 onClick={() => navigate("/auth")}
               >
                 Get Started
@@ -116,14 +116,14 @@ const LandingPage = () => {
             </p>
             <div className="mt-10 flex justify-center gap-4">
               <Button
-                size="lg"
-                className="bg-zinc-900 hover:bg-zinc-800"
-                onClick={handleLogin}
+              size="lg"
+              className="bg-zinc-900 hover:bg-zinc-800 text-white"
+              onClick={handleLogin}
               >
-                Start Free Trial <ArrowRightIcon className="ml-2 w-5 h-5" />
+              Start Free Trial <ArrowRightIcon className="ml-2 w-5 h-5" />
               </Button>
               <Button variant="outline" size="lg">
-                Watch Demo
+              Watch Demo
               </Button>
             </div>
           </div>
