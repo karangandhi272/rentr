@@ -75,31 +75,43 @@ export type Database = {
         Row: {
           address: string | null
           archived: boolean | null
+          city: string | null
+          country: string | null
           created_at: string
           description: string | null
           name: string | null
+          postal: string | null
           price: number | null
           propertyid: string
+          province: string | null
           userid: string | null
         }
         Insert: {
           address?: string | null
           archived?: boolean | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           description?: string | null
           name?: string | null
+          postal?: string | null
           price?: number | null
           propertyid?: string
+          province?: string | null
           userid?: string | null
         }
         Update: {
           address?: string | null
           archived?: boolean | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           description?: string | null
           name?: string | null
+          postal?: string | null
           price?: number | null
           propertyid?: string
+          province?: string | null
           userid?: string | null
         }
         Relationships: [

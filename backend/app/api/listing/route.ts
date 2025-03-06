@@ -564,6 +564,18 @@ export async function POST(request: Request) {
     // Post to Kijiji
     const kijijiResult = await postToKijiji(listingData);
 
+    // If posting fails, propagate the error message and use a 502 status code.
+    if (!kijijiResult.success) {
+      return NextResponse.json(
+        {
+          error: kijijiResult.error,
+          platform: kijijiResult.platform,
+        },
+        { status: 502 }
+      );
+    }
+
+    // On success, return a 200 response
     return NextResponse.json({
       success: true,
       results: [kijijiResult],

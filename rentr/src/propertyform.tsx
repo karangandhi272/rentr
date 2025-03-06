@@ -1,3 +1,4 @@
+import React, { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -13,17 +14,41 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
+import countryList from "react-select-country-list";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectScrollUpButton,
+  SelectScrollDownButton,
+} from "@/components/ui/select" // adjust the import path to where you placed your new Select component
 
 const formSchema = z.object({
   propertyName: z.string().min(2, {
     message: "Property name must be at least 2 characters.",
   }),
   address: z.string().min(5, {
-    message: "Address must be at least 5 characters.",
+    message: "Street address must be at least 5 characters.",
+  }),
+  aptnum: z.string().optional(),
+  postalCode: z.string().min(2, {
+    message: "Postal code must be at least 2 characters.",
+  }),
+  city: z.string().min(2, {
+    message: "City must be at least 2 characters.",
+  }),
+  province: z.string().min(2, {
+    message: "Province must be at least 2 characters.",
+  }),
+  country: z.string().min(2, {
+    message: "Country must be at least 2 characters.",
   }),
   price: z.string().refine((val) => !isNaN(Number(val)), {
     message: "Price must be a valid number.",
@@ -32,6 +57,31 @@ const formSchema = z.object({
     message: "Description must be at least 10 characters.",
   }),
 });
+
+interface CountryDropdownProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export function CountryDropdown({ value, onChange }: CountryDropdownProps) {
+  const options = useMemo(() => countryList().getData(), []);
+  const selectedOption = options.find(option => option.value === value);
+
+  return (
+    <Select onValueChange={onChange} value={value}>
+      <SelectTrigger>
+        <SelectValue placeholder="Select a country" />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 export default function PropertyForm() {
   const { toast } = useToast();
@@ -43,6 +93,11 @@ export default function PropertyForm() {
     defaultValues: {
       propertyName: "",
       address: "",
+      aptnum: "",
+      postalCode: "",
+      city: "",
+      province: "",
+      country: "",
       price: "",
       description: "",
     },
@@ -67,7 +122,6 @@ export default function PropertyForm() {
         images.map(async (image) => {
           const fileExt = image.name.split(".").pop();
           const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-
           const { error: uploadError } = await supabase.storage
             .from("images")
             .upload(fileName, image);
@@ -90,6 +144,11 @@ export default function PropertyForm() {
           {
             name: values.propertyName,
             address: values.address,
+            apt: values.aptnum,
+            postal: values.postalCode,
+            city: values.city,
+            province: values.province,
+            country: values.country,
             price: parseFloat(values.price),
             description: values.description,
             userid: user.id,
@@ -158,25 +217,96 @@ export default function PropertyForm() {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="address"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Address</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="123 Main St, City, State, ZIP"
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Enter the complete property address.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-1 gap-4">
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Street Address</FormLabel>
+                  <FormControl>
+                    <Input placeholder="123 Main St" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* New Apartment Number Field */}
+            <FormField
+              control={form.control}
+              name="aptnum"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Apartment Number</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Apt #" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="postalCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Postal Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="A1B 2C3" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>City</FormLabel>
+                  <FormControl>
+                    <Input placeholder="City Name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="province"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Province</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Province" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Country dropdown using Radix DropdownMenu */}
+            <FormField
+              control={form.control}
+              name="country"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Country</FormLabel>
+                  <FormControl>
+                    <CountryDropdown
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}

@@ -27,7 +27,7 @@ export const listingsApi = {
       title: property.name,
       description: property.description,
       price: property.price,
-      location: property.address,
+      location: `${property.address}, ${property.city}, ${property.province} ${property.postal}`,
       images: [], // TODO: Add property images
     };
 
@@ -59,6 +59,7 @@ const RentersPage: React.FC = () => {
     queryFn: () => leadsApi.getLeadsByPropertyId(id!),
     queryKey: leadsKeys.property(id!),
   });
+  const [posting, setPosting] = React.useState<boolean>(false);
 
   const handleAddRenter = () => {
     if (!property) return;
@@ -84,6 +85,10 @@ const RentersPage: React.FC = () => {
       if (!property) {
         throw new Error("Property not found");
       }
+      if (posting) {
+        return;
+      }
+      setPosting(true);
       await listingsApi.postListing(property);
       toast({
         title: "Success!",
@@ -102,6 +107,7 @@ const RentersPage: React.FC = () => {
         duration: 3000,
       });
     }
+    setPosting(false);
   };
 
   const handleChatClick = (leadId: string) => {
@@ -160,6 +166,7 @@ const RentersPage: React.FC = () => {
               variant="secondary"
               className="w-full md:w-auto bg-green-600 hover:bg-green-700 transition-all duration-200"
               onClick={handlePostListing}
+              disabled={posting}
             >
               Post Listing
             </Button>
