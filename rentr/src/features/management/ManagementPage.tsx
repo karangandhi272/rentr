@@ -9,6 +9,7 @@ import {
   Copy,
   Check,
   ClipboardCheck,
+  Settings, // Add this import
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useParams, useNavigate } from "react-router-dom";
@@ -173,6 +174,13 @@ const RentersPage: React.FC = () => {
                 <Copy className="h-4 w-4 transition-all duration-200" />
               )}{" "}
               Copy Link
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full md:w-auto bg-gray-700 hover:bg-gray-600 transition-all duration-200"
+              onClick={() => navigate(`/properties/${id}/settings`)}
+            >
+              <Settings className="h-4 w-4 mr-2" /> Settings
             </Button>
           </div>
         </CardHeader>

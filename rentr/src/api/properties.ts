@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { Property, PropertyQuestion } from '@/types/property';
 
 export const propertyKeys = {
   all: ["properties"] as const,
@@ -7,8 +8,86 @@ export const propertyKeys = {
   details: () => [...propertyKeys.all, "detail"] as const,
   detail: (id: string) => [...propertyKeys.details(), id] as const,
 };
+// Get property questions
+export const getPropertyQuestions = async (propertyId: string): Promise<PropertyQuestion[]> => {
+  const { data, error } = await supabase
+    .from('property_questions')
+    .select('*')
+    .eq('property_id', propertyId)
+    .is('deleted_at', null)
+    .order('order_index');
+  
+  if (error) throw error;
+  return data || [];
+};
+
+// Add a new property question
+export const addPropertyQuestion = async (question: Omit<PropertyQuestion, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>): Promise<PropertyQuestion> => {
+  console.log('Adding question:', question); // Debug log
+  
+  try {
+    const { data, error } = await supabase
+      .from('property_questions')
+      .insert([question])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Supabase error adding question:', error);
+      throw error;
+    }
+    
+    console.log('Question added successfully:', data);
+    return data;
+  } catch (err) {
+    console.error('Exception in addPropertyQuestion:', err);
+    throw err;
+  }
+};
+
+// Update property questions (batch operation)
+export const updatePropertyQuestions = async (questions: Pick<PropertyQuestion, 'id' | 'question_text' | 'is_required' | 'order_index'>[]): Promise<void> => {
+  const updatePromises = questions.map(question => 
+    supabase
+      .from('property_questions')
+      .update({
+        question_text: question.question_text,
+        is_required: question.is_required,
+        order_index: question.order_index,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', question.id)
+  );
+  
+  await Promise.all(updatePromises);
+};
+
+// Delete a property question (soft delete)
+export const deletePropertyQuestion = async (questionId: string): Promise<void> => {
+  console.log('Deleting question:', questionId); // Debug log
+  
+  try {
+    const { error } = await supabase
+      .from('property_questions')
+      .update({
+        deleted_at: new Date().toISOString()
+      })
+      .eq('id', questionId);
+    
+    if (error) {
+      console.error('Supabase error deleting question:', error);
+      throw error;
+    }
+    
+    console.log('Question deleted successfully');
+  } catch (err) {
+    console.error('Exception in deletePropertyQuestion:', err);
+    throw err;
+  }
+};
 
 export const propertiesApi = {
+  
   fetchUserProperties: async function () {
     const {
       data: { user },
@@ -80,4 +159,10 @@ export const propertiesApi = {
 
     return property;
   },
+
+  fetchPropertyQuestions: getPropertyQuestions,
+  addPropertyQuestion,
+  updatePropertyQuestions,
+  deletePropertyQuestion
 };
+
