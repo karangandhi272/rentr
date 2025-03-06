@@ -77,7 +77,7 @@ const LandingPage = () => {
                 Rentr
               </span>
             </div>
-            <nav className="hidden md:flex space-x-8">
+            <nav className="hidden md:flex space-x-8 items-center">
               <a
                 href="#features"
                 className="text-gray-600 hover:text-zinc-900 transition-colors"
