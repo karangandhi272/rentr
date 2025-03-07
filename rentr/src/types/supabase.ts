@@ -74,6 +74,8 @@ export type Database = {
       property: {
         Row: {
           address: string | null
+          address_string: string | null
+          apt: string | null
           archived: boolean | null
           city: string | null
           country: string | null
@@ -88,6 +90,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          address_string?: string | null
+          apt?: string | null
           archived?: boolean | null
           city?: string | null
           country?: string | null
@@ -102,6 +106,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          address_string?: string | null
+          apt?: string | null
           archived?: boolean | null
           city?: string | null
           country?: string | null

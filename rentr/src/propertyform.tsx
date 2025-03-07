@@ -149,6 +149,7 @@ export default function PropertyForm() {
             city: values.city,
             province: values.province,
             country: values.country,
+            address_string: `${values.address}, ${values.city}, ${values.province}, ${values.country}`,
             price: parseFloat(values.price),
             description: values.description,
             userid: user.id,

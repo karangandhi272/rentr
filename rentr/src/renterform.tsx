@@ -144,7 +144,7 @@ export default function RenterForm() {
           <h2 className="text-2xl font-bold">Apply for Rental</h2>
           <div className="mt-2 space-y-1">
             <p className="font-semibold">{property.name}</p>
-            <p className="text-muted-foreground">{property.address}</p>
+            <p className="text-muted-foreground">{property.address_string}</p>
             <p className="text-muted-foreground">${property.price}/month</p>
           </div>
         </div>

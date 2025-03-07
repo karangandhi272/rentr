@@ -77,7 +77,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ listing, isArchived }) => {
         />
         <div className="space-y-2">
           <p>Price: ${listing.price}/month</p>
-          <p>{listing.address}</p>
+          <p>{listing.address_string}</p>
           <div className="space-y-2">
             <Button
               onClick={() => navigate(`/manage/${listing.propertyid}`)}

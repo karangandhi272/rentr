@@ -27,7 +27,7 @@ export const listingsApi = {
       title: property.name,
       description: property.description,
       price: property.price,
-      location: `${property.address}, ${property.city}, ${property.province} ${property.postal}`,
+      location: property.postal,
       images: [], // TODO: Add property images
     };
 
@@ -151,7 +151,7 @@ const RentersPage: React.FC = () => {
             <MapPin className="size-6 md:size-8 text-blue-400" />
             <div>
               <CardTitle className="text-lg md:text-2xl font-bold break-words">
-                {property.address}
+                {property.address_string}
               </CardTitle>
               <div className="flex items-center space-x-2 mt-2">
                 <DollarSign className="size-4 md:size-5 text-green-400" />

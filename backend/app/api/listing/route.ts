@@ -444,8 +444,8 @@ async function fillTextFields(page: any, listingData: ListingData) {
 
 async function postToKijiji(listingData: ListingData) {
   const browser = await chromium.launch({
-    headless: false,
-    channel: "chrome",
+    headless: process.env.DEBUG === "true" ? false : true,
+    channel: process.env.DEBUG === "true" ? "chrome" : "chromium",
   });
 
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
@@ -501,10 +501,12 @@ async function postToKijiji(listingData: ListingData) {
 
     console.log("Submitting form...");
     await page.click('button[data-testid="checkout-post-btn"]');
-    await page.waitForLoadState("networkidle");
+    await page.waitForFunction(() => {
+      return [...document.querySelectorAll('h3')].some(el => el.textContent.includes("My Ad's Status"));
+    }, { timeout: 10000 });    
 
-    // await context.close();
-    // await browser.close();
+    await context.close();
+    await browser.close();
 
     return { success: true, platform: "Kijiji" };
   } catch (error) {
@@ -563,7 +565,6 @@ export async function POST(request: Request) {
 
     // Post to Kijiji
     const kijijiResult = await postToKijiji(listingData);
-
     // If posting fails, propagate the error message and use a 502 status code.
     if (!kijijiResult.success) {
       return NextResponse.json(
