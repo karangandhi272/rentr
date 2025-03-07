@@ -20,6 +20,8 @@ import { Property } from "@/types/property";
 import { propertiesApi } from "@/api/properties";
 import { Lead } from "@/types/leads";
 import { leadsApi, leadsKeys } from "@/api/lead";
+import { Progress } from "@/components/ui/progress";
+import { set } from "date-fns";
 
 export const listingsApi = {
   postListing: async (property: Property) => {
@@ -60,6 +62,28 @@ const RentersPage: React.FC = () => {
     queryKey: leadsKeys.property(id!),
   });
   const [posting, setPosting] = React.useState<boolean>(false);
+  const [progress, setProgress] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    if (!posting) {
+      setProgress(0);
+      return;
+    }; // Only run when posting is true
+  
+    setProgress(0); // Reset progress when starting
+    const start = Date.now();
+    const duration = 30000; // 30 seconds
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const percent = Math.min((elapsed / duration) * 100, 100);
+      setProgress(percent);
+      if (percent === 100) {
+        clearInterval(interval);
+      }
+    }, 100); // update every 100ms for smooth progress
+  
+    return () => clearInterval(interval);
+  }, [posting]);
 
   const handleAddRenter = () => {
     if (!property) return;
@@ -192,6 +216,7 @@ const RentersPage: React.FC = () => {
           </div>
         </CardHeader>
       </Card>
+      <Progress value={progress} />
       {leads!.length === 0 ? (
         <Card className="w-full max-w-5xl mx-auto">
           <CardContent className="p-6 text-center text-muted-foreground">
