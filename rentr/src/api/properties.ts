@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
-import { Property, PropertyQuestion } from '@/types/property';
+import { Property, PropertyUpdate, PropertyQuestion, PropertyQuestionInsert } from '@/types/property';
 
 export const propertyKeys = {
   all: ["properties"] as const,
@@ -8,22 +8,41 @@ export const propertyKeys = {
   details: () => [...propertyKeys.all, "detail"] as const,
   detail: (id: string) => [...propertyKeys.details(), id] as const,
 };
+
 // Get property questions
 export const getPropertyQuestions = async (propertyId: string): Promise<PropertyQuestion[]> => {
-  const { data, error } = await supabase
-    .from('property_questions')
-    .select('*')
-    .eq('property_id', propertyId)
-    .is('deleted_at', null)
-    .order('order_index');
+  console.log('Fetching questions for property:', propertyId);
   
-  if (error) throw error;
-  return data || [];
+  try {
+    const { data, error } = await supabase
+      .from('property_questions')
+      .select('*')
+      .eq('property_id', propertyId)
+      .is('deleted_at', null)
+      .order('order_index', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching property questions:', error);
+      throw error;
+    }
+    
+    return data || [];
+  } catch (err) {
+    console.error('Exception in getPropertyQuestions:', err);
+    throw err;
+  }
 };
 
 // Add a new property question
-export const addPropertyQuestion = async (question: Omit<PropertyQuestion, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>): Promise<PropertyQuestion> => {
-  console.log('Adding question:', question); // Debug log
+export const addPropertyQuestion = async (
+  question: {
+    property_id: string;
+    question_text: string;
+    is_required: boolean;
+    order_index: number;
+  }
+): Promise<PropertyQuestion> => {
+  console.log('Adding question:', question);
   
   try {
     const { data, error } = await supabase
@@ -33,11 +52,10 @@ export const addPropertyQuestion = async (question: Omit<PropertyQuestion, 'id' 
       .single();
     
     if (error) {
-      console.error('Supabase error adding question:', error);
+      console.error('Error adding property question:', error);
       throw error;
     }
     
-    console.log('Question added successfully:', data);
     return data;
   } catch (err) {
     console.error('Exception in addPropertyQuestion:', err);
@@ -64,7 +82,7 @@ export const updatePropertyQuestions = async (questions: Pick<PropertyQuestion, 
 
 // Delete a property question (soft delete)
 export const deletePropertyQuestion = async (questionId: string): Promise<void> => {
-  console.log('Deleting question:', questionId); // Debug log
+  console.log('Soft deleting question:', questionId);
   
   try {
     const { error } = await supabase
@@ -75,14 +93,105 @@ export const deletePropertyQuestion = async (questionId: string): Promise<void> 
       .eq('id', questionId);
     
     if (error) {
-      console.error('Supabase error deleting question:', error);
+      console.error('Error soft deleting property question:', error);
       throw error;
     }
     
-    console.log('Question deleted successfully');
+    console.log('Question soft deleted successfully');
   } catch (err) {
     console.error('Exception in deletePropertyQuestion:', err);
     throw err;
+  }
+};
+
+// Check if a question exists in the database
+export const checkQuestionExists = async (questionId: string): Promise<boolean> => {
+  console.log('Checking if question exists:', questionId);
+  
+  try {
+    const { data, error } = await supabase
+      .from('property_questions')
+      .select('id')
+      .eq('id', questionId)
+      .is('deleted_at', null)
+      .single();
+    
+    if (error) {
+      // If error is 'no rows returned', it means the question doesn't exist
+      if (error.code === 'PGRST116') {
+        return false;
+      }
+      
+      throw error;
+    }
+    
+    return !!data;
+  } catch (err) {
+    console.error('Exception in checkQuestionExists:', err);
+    return false;
+  }
+};
+
+// Update a single question
+export const updatePropertyQuestion = async (
+  questionId: string, 
+  updates: { 
+    question_text?: string; 
+    is_required?: boolean; 
+    order_index?: number; 
+  }
+): Promise<PropertyQuestion> => {
+  console.log('Updating question:', questionId, updates);
+  
+  try {
+    const { data, error } = await supabase
+      .from('property_questions')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', questionId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating question:', error);
+      throw error;
+    }
+    
+    console.log('Question updated successfully:', data);
+    return data;
+  } catch (err) {
+    console.error('Exception in updatePropertyQuestion:', err);
+    throw err;
+  }
+};
+
+// Update property
+export const updateProperty = async (
+  propertyId: string, 
+  updates: Partial<PropertyUpdate>
+) => {
+  console.log('Updating property:', propertyId, updates);
+  
+  try {
+    const { data, error } = await supabase
+      .from('properties')
+      .update(updates)
+      .eq('propertyid', propertyId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating property:', error);
+      return { data: null, error };
+    }
+    
+    console.log('Property updated successfully:', data);
+    return { data, error: null };
+  } catch (err) {
+    console.error('Exception in updateProperty:', err);
+    return { data: null, error: err };
   }
 };
 
@@ -162,7 +271,10 @@ export const propertiesApi = {
 
   fetchPropertyQuestions: getPropertyQuestions,
   addPropertyQuestion,
+  updatePropertyQuestion,
+  deletePropertyQuestion,
+  checkQuestionExists,  // Add this
   updatePropertyQuestions,
-  deletePropertyQuestion
+  updateProperty
 };
 

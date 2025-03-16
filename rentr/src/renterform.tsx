@@ -11,6 +11,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea"; // Add Textarea import
 import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { DateTimePicker } from "@/components/ui/datetimepicker";
@@ -18,21 +19,46 @@ import { ImageSlider } from "@/components/ui/image-slider";
 import { useQuery } from "@tanstack/react-query";
 import { propertiesApi, propertyKeys } from "./api/properties";
 import { supabase } from "./lib/supabaseClient";
+import { useState, useEffect } from "react"; // Add useState and useEffect
+import { Checkbox } from "@/components/ui/checkbox"; // Add Checkbox import
 
-const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Name must be at least 2 characters.",
-  }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  number: z.string().min(10, {
-    message: "Please enter a valid phone number.",
-  }),
-  date: z.date({
-    required_error: "Please select a date and time.",
-  }),
-});
+// Add interface for precheck questions
+interface PrecheckQuestion {
+  id: string;
+  text: string;
+  required: boolean;
+}
+
+// Create dynamic form schema with precheck questions
+const createFormSchema = (precheckQuestions: PrecheckQuestion[]) => {
+  let schema: any = {
+    name: z.string().min(2, {
+      message: "Name must be at least 2 characters.",
+    }),
+    email: z.string().email({
+      message: "Please enter a valid email address.",
+    }),
+    number: z.string().min(10, {
+      message: "Please enter a valid phone number.",
+    }),
+    date: z.date({
+      required_error: "Please select a date and time.",
+    }),
+  };
+
+  // Add validation for each precheck question
+  precheckQuestions.forEach((question) => {
+    if (question.required) {
+      schema[`question_${question.id}`] = z.string().min(1, {
+        message: "This question requires an answer.",
+      });
+    } else {
+      schema[`question_${question.id}`] = z.string().optional();
+    }
+  });
+
+  return z.object(schema);
+};
 
 export type Image = {
   url: string;
@@ -42,16 +68,52 @@ export default function RenterForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [precheckQuestions, setPrecheckQuestions] = useState<PrecheckQuestion[]>([]);
+  const [formSchema, setFormSchema] = useState(createFormSchema([]));
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  // Fetch property precheck questions
+  const { data: questions = [], isLoading: isQuestionsLoading } = useQuery({
+    queryKey: ["propertyQuestions", id],
+    queryFn: async () => {
+      if (!id) return [];
+      try {
+        const questions = await propertiesApi.fetchPropertyQuestions(id);
+        return questions.map((q: any) => ({
+          id: q.id,
+          text: q.question_text,
+          required: q.is_required === null ? false : Boolean(q.is_required)
+        }));
+      } catch (error) {
+        console.error("Error fetching precheck questions:", error);
+        return [];
+      }
+    },
+    enabled: !!id,
+  });
+
+  // Update form schema when questions are loaded
+  useEffect(() => {
+    if (questions.length > 0) {
+      setPrecheckQuestions(questions);
+      setFormSchema(createFormSchema(questions));
+    }
+  }, [questions]);
+
+  const form = useForm<any>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
       email: "",
       number: "",
       date: undefined,
+      // Questions will be added dynamically
     },
   });
+
+  // Reset form when schema changes
+  useEffect(() => {
+    form.reset(form.getValues());
+  }, [formSchema]);
 
   const { data: property, isLoading: isLoadingProperty } = useQuery({
     queryFn: () => propertiesApi.fetchPropertyById(id!),
@@ -59,18 +121,15 @@ export default function RenterForm() {
     enabled: !!id,
   });
 
-  // Modify the images query to handle the data type properly
   const { data: images = [], isLoading: imagesLoading } = useQuery({
     queryKey: ["propertyImages", id],
     queryFn: async () => {
       const images = await propertiesApi.fetchPropertyImages(id!);
-      console.log("Fetched images:", images); // Debug log
+      console.log("Fetched images:", images);
       return images;
     },
     enabled: !!id,
   });
-
-  console.log(images);
 
   if (!id) {
     return (
@@ -84,22 +143,30 @@ export default function RenterForm() {
       </div>
     );
   }
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  
+  async function onSubmit(values: any) {
     try {
-      console.log("Submitting form with values:", values); // Debug log
+      console.log("Submitting form with values:", values);
+
+      // Extract question answers
+      const questionAnswers = {};
+      precheckQuestions.forEach(q => {
+        questionAnswers[q.id] = values[`question_${q.id}`];
+      });
 
       const { error } = await supabase.from("leads").insert([
         {
           property: id,
           name: values.name,
-          email: values.email, // Add email to the submission
+          email: values.email,
           number: values.number,
-          date: values.date.toISOString(), // Convert Date to ISO string
+          date: values.date.toISOString(),
+          property_answers: questionAnswers // Changed from precheck_answers to property_answers to match DB schema
         },
       ]);
 
       if (error) {
-        console.error("Supabase error:", error); // Debug log
+        console.error("Supabase error:", error);
         throw error;
       }
 
@@ -112,7 +179,7 @@ export default function RenterForm() {
 
       navigate("/");
     } catch (error: any) {
-      console.error("Submission error:", error); // Debug log
+      console.error("Submission error:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -121,7 +188,7 @@ export default function RenterForm() {
     }
   }
 
-  if (isLoadingProperty) {
+  if (isLoadingProperty || isQuestionsLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -228,13 +295,50 @@ export default function RenterForm() {
                     <DateTimePicker
                       date={field.value}
                       setDate={(date) => field.onChange(date)}
-                      propertyId={id!} // Add this line
+                      propertyId={id!}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {/* Precheck Questions Section */}
+            {precheckQuestions.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-4">Property Questionnaire</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Please answer the following questions about your application:
+                </p>
+                <div className="space-y-6">
+                  {precheckQuestions.map((question) => (
+                    <FormField
+                      key={question.id}
+                      control={form.control}
+                      name={`question_${question.id}`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-start gap-2">
+                            {question.text}
+                            {question.required && (
+                              <span className="text-red-500">*</span>
+                            )}
+                          </FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Your answer"
+                              {...field} 
+                              className="resize-none"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             <Button
               type="submit"

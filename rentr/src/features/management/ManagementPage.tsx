@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +9,9 @@ import {
   Copy,
   Check,
   ClipboardCheck,
-  Settings, // Add this import
+  Settings,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useParams, useNavigate } from "react-router-dom";
@@ -22,6 +24,13 @@ import { Lead } from "@/types/leads";
 import { leadsApi, leadsKeys } from "@/api/lead";
 import { Progress } from "@/components/ui/progress";
 import { set } from "date-fns";
+
+// Add interface for precheck questions
+interface PrecheckQuestion {
+  id: string;
+  text: string;
+  required: boolean;
+}
 
 export const listingsApi = {
   postListing: async (property: Property) => {
@@ -53,16 +62,46 @@ const RentersPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isCopied, setIsCopied] = React.useState(false);
+  const [expandedLeads, setExpandedLeads] = useState<Record<string, boolean>>({});
+  const [precheckQuestions, setPrecheckQuestions] = useState<PrecheckQuestion[]>([]);
+  const [posting, setPosting] = React.useState<boolean>(false);
+  const [progress, setProgress] = React.useState<number>(0);
+  
+  // Add questions query
+  const { data: questions = [], isLoading: questionsLoading } = useQuery({
+    queryKey: ["propertyQuestions", id],
+    queryFn: async () => {
+      if (!id) return [];
+      try {
+        const questions = await propertiesApi.fetchPropertyQuestions(id);
+        return questions.map((q: any) => ({
+          id: q.id,
+          text: q.question_text,
+          required: q.is_required === null ? false : Boolean(q.is_required)
+        }));
+      } catch (error) {
+        console.error("Error fetching precheck questions:", error);
+        return [];
+      }
+    },
+    enabled: !!id,
+  });
+
+  useEffect(() => {
+    if (questions.length > 0) {
+      setPrecheckQuestions(questions);
+    }
+  }, [questions]);
+
   const { data: property, isLoading: propertyLoading } = useQuery<Property>({
     queryFn: () => propertiesApi.fetchPropertyById(id!),
     queryKey: ["property", id],
   });
+
   const { data: leads, isLoading: leadsLoading } = useQuery<Lead[]>({
     queryFn: () => leadsApi.getLeadsByPropertyId(id!),
     queryKey: leadsKeys.property(id!),
   });
-  const [posting, setPosting] = React.useState<boolean>(false);
-  const [progress, setProgress] = React.useState<number>(0);
 
   React.useEffect(() => {
     if (!posting) {
@@ -84,6 +123,13 @@ const RentersPage: React.FC = () => {
   
     return () => clearInterval(interval);
   }, [posting]);
+
+  const toggleLeadExpansion = (leadId: string) => {
+    setExpandedLeads(prev => ({
+      ...prev,
+      [leadId]: !prev[leadId]
+    }));
+  };
 
   const handleAddRenter = () => {
     if (!property) return;
@@ -159,8 +205,15 @@ const RentersPage: React.FC = () => {
     }
   };
 
-  if (propertyLoading || leadsLoading) {
-    return <div>Loading...</div>;
+  if (propertyLoading || leadsLoading || questionsLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!property) {
@@ -169,6 +222,7 @@ const RentersPage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-2 md:p-4 space-y-4 md:space-y-6">
+      {/* Property header card */}
       <Card className="w-full max-w-5xl mx-auto bg-gray-800 text-white">
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 md:p-6">
           <div className="flex items-center space-x-4 mb-4 md:mb-0">
@@ -216,51 +270,91 @@ const RentersPage: React.FC = () => {
           </div>
         </CardHeader>
       </Card>
+      
       <Progress value={progress} />
-      {leads!.length === 0 ? (
+      
+      {/* Leads section */}
+      {!leads || leads.length === 0 ? (
         <Card className="w-full max-w-5xl mx-auto">
           <CardContent className="p-6 text-center text-muted-foreground">
             No applications received yet
           </CardContent>
         </Card>
       ) : (
-        leads!.map((lead) => (
+        leads.map((lead) => (
           <Card key={lead.id} className="w-full max-w-5xl mx-auto">
-            <CardContent className="flex flex-col md:flex-row items-start md:items-center p-4 md:p-6 space-y-4 md:space-y-0">
-              <div className="flex-grow space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-base md:text-lg font-semibold">
-                    {lead.name}
-                  </h3>
-                  <Badge variant="secondary">New Lead</Badge>
+            <CardContent className="p-4 md:p-6">
+              {/* Lead header info */}
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4">
+                <div className="space-y-2 mb-4 md:mb-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base md:text-lg font-semibold">
+                      {lead.name}
+                    </h3>
+                    <Badge variant="secondary">New Lead</Badge>
+                  </div>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    {lead.email} • {lead.number}
+                  </p>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    Preferred Date:{" "}
+                    {new Date(lead.date as string).toLocaleDateString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Applied: {new Date(lead.created_at).toLocaleDateString()}
+                  </p>
                 </div>
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  {lead.number}
-                </p>
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  Preferred Date:{" "}
-                  {new Date(lead.date as string).toLocaleDateString()}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Applied: {new Date(lead.created_at).toLocaleDateString()}
-                </p>
+                
+                {/* Action buttons */}
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleChatClick(lead.id.toString())}
+                  >
+                    <MessageCircle className="mr-2 h-4 w-4" /> Chat
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePrecheck(lead)}
+                  >
+                    <ClipboardCheck className="mr-2 h-4 w-4" /> Precheck
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleLeadExpansion(lead.id.toString())}
+                  >
+                    {expandedLeads[lead.id] ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
+                  </Button>
+                </div>
               </div>
-              <div className="flex w-full md:w-auto space-x-2 md:space-x-4">
-                <Button
-                  variant="outline"
-                  className="flex-1 md:flex-none"
-                  onClick={() => handleChatClick(lead.id.toString())}
-                >
-                  <MessageCircle className="mr-2 size-4" /> Chat
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1 md:flex-none"
-                  onClick={() => handlePrecheck(lead)}
-                >
-                  <ClipboardCheck className="mr-2 size-4" /> Precheck
-                </Button>
-              </div>
+              
+              {/* Precheck Questions and Answers */}
+              {expandedLeads[lead.id] && precheckQuestions.length > 0 && (
+                <div className="mt-4 bg-gray-50 p-4 rounded-md border">
+                  <h4 className="font-medium text-sm mb-3">Precheck Responses</h4>
+                  <div className="space-y-3">
+                    {precheckQuestions.map((question) => {
+                      // Get the answer for this question from lead's property_answers
+                      const answers = lead.property_answers || {};
+                      const answer = answers[question.id] || "No response";
+                      
+                      return (
+                        <div key={question.id} className="text-sm">
+                          <p className="font-medium">{question.text}</p>
+                          <p className="text-muted-foreground mt-1 pl-2 border-l-2 border-gray-200">{answer}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))

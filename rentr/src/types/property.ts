@@ -37,3 +37,4 @@ export interface QuestionWithAnswer {
   answer: string;
   isValid: boolean;
 }
+// In your property.ts types file
