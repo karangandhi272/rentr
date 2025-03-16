@@ -445,7 +445,7 @@ async function fillTextFields(page: any, listingData: ListingData) {
 async function postToKijiji(listingData: ListingData) {
   const browser = await chromium.launch({
     headless: process.env.DEBUG === "true" ? false : true,
-    channel: process.env.DEBUG === "true" ? "chrome" : "chromium",
+    args: ['--disable-blink-features=AutomationControlled'],
   });
 
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
