@@ -9,6 +9,60 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      agencies: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          description: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          logo: string | null
+          name: string
+          phone: string | null
+          postal: string | null
+          province: string | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo?: string | null
+          name: string
+          phone?: string | null
+          postal?: string | null
+          province?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo?: string | null
+          name?: string
+          phone?: string | null
+          postal?: string | null
+          province?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       availibility: {
         Row: {
           created_at: string
@@ -38,28 +92,31 @@ export type Database = {
           created_at: string
           date: Json | null
           email: string | null
-          id: number
+          id: string
           name: string | null
           number: number | null
           property: string | null
+          property_answers: Json | null
         }
         Insert: {
           created_at?: string
           date?: Json | null
           email?: string | null
-          id?: number
+          id?: string
           name?: string | null
           number?: number | null
           property?: string | null
+          property_answers?: Json | null
         }
         Update: {
           created_at?: string
           date?: Json | null
           email?: string | null
-          id?: number
+          id?: string
           name?: string | null
           number?: number | null
           property?: string | null
+          property_answers?: Json | null
         }
         Relationships: [
           {
@@ -75,6 +132,7 @@ export type Database = {
         Row: {
           address: string | null
           address_string: string | null
+          agencyid: string | null
           apt: string | null
           archived: boolean | null
           city: string | null
@@ -86,11 +144,11 @@ export type Database = {
           price: number | null
           propertyid: string
           province: string | null
-          userid: string | null
         }
         Insert: {
           address?: string | null
           address_string?: string | null
+          agencyid?: string | null
           apt?: string | null
           archived?: boolean | null
           city?: string | null
@@ -102,11 +160,11 @@ export type Database = {
           price?: number | null
           propertyid?: string
           province?: string | null
-          userid?: string | null
         }
         Update: {
           address?: string | null
           address_string?: string | null
+          agencyid?: string | null
           apt?: string | null
           archived?: boolean | null
           city?: string | null
@@ -118,14 +176,13 @@ export type Database = {
           price?: number | null
           propertyid?: string
           province?: string | null
-          userid?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "property_userid_fkey1"
-            columns: ["userid"]
+            foreignKeyName: "property_agencyid_fkey"
+            columns: ["agencyid"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "agencies"
             referencedColumns: ["id"]
           },
         ]
@@ -202,6 +259,7 @@ export type Database = {
       }
       users: {
         Row: {
+          agencyid: string | null
           availability: Json | null
           bookings: string | null
           created_at: string | null
@@ -215,6 +273,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          agencyid?: string | null
           availability?: Json | null
           bookings?: string | null
           created_at?: string | null
@@ -228,6 +287,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          agencyid?: string | null
           availability?: Json | null
           bookings?: string | null
           created_at?: string | null
@@ -240,7 +300,15 @@ export type Database = {
           role?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "users_agencyid_fkey"
+            columns: ["agencyid"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

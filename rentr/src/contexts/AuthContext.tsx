@@ -2,6 +2,12 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Session, User } from "@supabase/supabase-js";
 
+// Add enum for roles
+export enum Role {
+  Admin = "Admin",
+  User = "User"
+}
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
@@ -15,7 +21,9 @@ export interface SignUpData {
   email: string;
   password: string;
   name: string;
-  role?: string;
+  role: Role; // Change string to Role enum
+  agencyId?: string; // Add this for linking users to agencies
+  phoneNumber?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,28 +60,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   }
 
-  async function signUp({ email, password, ...userData }: SignUpData) {
+  async function signUp({ email, password, name, role, agencyId, phoneNumber }: SignUpData) {
     const {
       data: { user },
       error: signUpError,
     } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          name,
+          role,
+          agencyid: agencyId,
+          phone_number: phoneNumber,
+        },
+      }
     });
 
     if (signUpError) throw signUpError;
 
     if (user) {
+      // Add user to the users table, but without email and password
       const { error: profileError } = await supabase.from("users").insert([
         {
           id: user.id,
-          ...userData,
+          name,
+          role, // This is now Role.Admin or Role.User
+          agencyid: agencyId,
+          phone_number: phoneNumber,
           created_at: new Date().toISOString(),
           is_active: true,
         },
       ]);
 
       if (profileError) throw profileError;
+
+      // If agency ID is provided, also add entry to agency_members table
+      if (agencyId) {
+        const { error: memberError } = await supabase.from("agency_members").insert([
+          {
+            userid: user.id,
+            agencyid: agencyId,
+            role, // This is now Role.Admin or Role.User
+            created_at: new Date().toISOString(),
+            is_active: true,
+          },
+        ]);
+
+        if (memberError) throw memberError;
+      }
     }
   }
 

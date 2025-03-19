@@ -7,8 +7,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
-import { SignUpData } from "@/types/auth.types";
+import { SignUpData, Role } from "@/types/auth.types";
 import { Building2 } from "lucide-react";
+import AgencyRegistrationModal from "@/components/AgencyRegistrationModal";
 
 const AuthenticationPage = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ const AuthenticationPage = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
+  const [isAgencyModalOpen, setIsAgencyModalOpen] = useState(false);
 
   // Validation functions
   const validateEmail = (email: string) => {
@@ -55,26 +57,27 @@ const AuthenticationPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation checks
-    if (!email || !validateEmail(email)) {
-      showToast(
-        "Invalid Email",
-        "Please enter a valid email address",
-        "destructive"
-      );
-      return;
-    }
-
-    if (!password || !validatePassword(password)) {
-      showToast(
-        "Invalid Password",
-        "Password must be at least 6 characters long",
-        "destructive"
-      );
-      return;
-    }
-
+    // For regular sign up, now show agency modal instead of creating account directly
     if (!isLogin) {
+      // Validate fields before showing modal
+      if (!validateEmail(email)) {
+        showToast(
+          "Invalid Email",
+          "Please enter a valid email address",
+          "destructive"
+        );
+        return;
+      }
+
+      if (!validatePassword(password)) {
+        showToast(
+          "Invalid Password",
+          "Password must be at least 6 characters long",
+          "destructive"
+        );
+        return;
+      }
+
       if (!firstName.trim()) {
         showToast(
           "Missing First Name",
@@ -97,8 +100,13 @@ const AuthenticationPage = () => {
         );
         return;
       }
+
+      // Open agency modal with proper user data
+      setIsAgencyModalOpen(true);
+      return;
     }
 
+    // For login, continue as before
     try {
       if (isLogin) {
         await signIn(email, password);
@@ -107,7 +115,7 @@ const AuthenticationPage = () => {
           email,
           password,
           name: `${firstName} ${lastName}`,
-          role: "user",
+          role: Role.User, // Use enum value instead of string
         };
 
         await signUp(signUpData);
@@ -260,16 +268,16 @@ const AuthenticationPage = () => {
                 </div>
               </form>
               <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
 
-              <div className="relative flex justify-center text-xs uppercase z-10">
-                <span className="bg-white px-2 text-muted-foreground">
-                  Or continue with
-                </span>
+                <div className="relative flex justify-center text-xs uppercase z-10">
+                  <span className="bg-white px-2 text-muted-foreground">
+                    Or continue with
+                  </span>
+                </div>
               </div>
-            </div>
               <Button
                 type="button"
                 variant="outline"
@@ -277,6 +285,16 @@ const AuthenticationPage = () => {
                 className="h-9 md:h-10"
               >
                 Sign in with Apple
+              </Button>
+              
+              {/* Add Direct Agency Registration button */}
+              <Button
+                type="button"
+                variant="outline" 
+                onClick={() => setIsAgencyModalOpen(true)}
+                className="h-9 md:h-10"
+              >
+                Register an Agency
               </Button>
             </div>
             <p className="px-4 text-center text-xs md:text-sm text-muted-foreground">
@@ -295,6 +313,18 @@ const AuthenticationPage = () => {
         </div>
       </div>
       <Toaster />
+      
+      {/* Agency Registration Modal */}
+      <AgencyRegistrationModal
+        isOpen={isAgencyModalOpen}
+        onClose={() => setIsAgencyModalOpen(false)}
+        userData={{
+          name: `${firstName} ${lastName}`,
+          email: email,
+          password: password,
+          username: username
+        }}
+      />
     </div>
   );
 };

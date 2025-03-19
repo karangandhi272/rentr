@@ -197,6 +197,7 @@ export const updateProperty = async (
 
 export const propertiesApi = {
   
+  // Fetch properties for the current user's agency
   fetchUserProperties: async function () {
     const {
       data: { user },
@@ -206,10 +207,42 @@ export const propertiesApi = {
       throw new Error("User not authenticated");
     }
 
+    // First get the user's agency ID
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("agencyid")
+      .eq("id", user.id)
+      .single();
+      
+    if (userError) {
+      throw new Error("Failed to get user agency information");
+    }
+    
+    if (!userData.agencyid) {
+      throw new Error("User is not associated with any agency");
+    }
+    
+    // Then fetch properties for that agency
     const { data: properties, error: propertiesError } = await supabase
       .from("property")
       .select("*")
-      .eq("userid", user.id);
+      .eq("agencyid", userData.agencyid);
+
+    if (propertiesError) throw propertiesError;
+
+    return properties;
+  },
+
+  // Fetch properties for a specific agency directly
+  fetchAgencyProperties: async function(agencyId: string) {
+    if (!agencyId) {
+      throw new Error("Agency ID is required");
+    }
+    
+    const { data: properties, error: propertiesError } = await supabase
+      .from("property")
+      .select("*")
+      .eq("agencyid", agencyId);
 
     if (propertiesError) throw propertiesError;
 
@@ -267,6 +300,50 @@ export const propertiesApi = {
     if (propertyError) throw propertyError;
 
     return property;
+  },
+  
+  // Create a new property with the agency ID
+  createProperty: async function(propertyData: Omit<Property, "propertyid" | "created_at">) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    // First get the user's agency ID if not provided
+    if (!propertyData.agencyid) {
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("agencyid")
+        .eq("id", user.id)
+        .single();
+        
+      if (userError) {
+        throw new Error("Failed to get user agency information");
+      }
+      
+      if (!userData.agencyid) {
+        throw new Error("User is not associated with any agency");
+      }
+      
+      // Add the agency ID to the property data
+      propertyData.agencyid = userData.agencyid;
+    }
+    
+    // Add created_by field to track which user created the property
+    propertyData.created_by = user.id;
+    
+    // Create the property
+    const { data, error } = await supabase
+      .from("property")
+      .insert([propertyData])
+      .select();
+      
+    if (error) throw error;
+    
+    return data?.[0];
   },
 
   fetchPropertyQuestions: getPropertyQuestions,
