@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AgencyUser } from "../types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,19 +35,38 @@ import { useUpdateUserRole } from "../hooks/useAgencyUsers";
 import { useToast } from "@/hooks/use-toast";
 import { AddTeamMemberDialog } from "./AddTeamMemberDialog";
 import { UserAvailabilityDialog } from "./UserAvailabilityDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAddAgencyUser } from "../hooks/useAgencyUsers";
 
 interface AgencyTeamProps {
   users: AgencyUser[];
   isAdmin: boolean;
   currentUserId?: string;
+  isLoading?: boolean;
 }
 
-const AgencyTeam = ({ users, isAdmin, currentUserId }: AgencyTeamProps) => {
+const AgencyTeam = ({ users, isAdmin, currentUserId, isLoading = false }: AgencyTeamProps) => {
   const [selectedUser, setSelectedUser] = useState<AgencyUser | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isAvailabilityDialogOpen, setIsAvailabilityDialogOpen] = useState(false);
   const { toast } = useToast();
   const { mutate: updateRole, isPending: isUpdatingRole } = useUpdateUserRole();
+  const { user } = useAuth();
+  const [isAdding, setIsAdding] = useState(false);
+  const addAgencyUser = useAddAgencyUser();
+
+  useEffect(() => {
+    console.log("AgencyTeam - isAdmin prop:", isAdmin);
+  }, [isAdmin]);
+
+  const [localIsAdmin, setLocalIsAdmin] = useState(isAdmin);
+  useEffect(() => {
+    setLocalIsAdmin(isAdmin);
+    console.log("AgencyTeam - localIsAdmin set to:", isAdmin);
+    
+    // Uncomment to force admin access for testing
+    // setLocalIsAdmin(true);
+  }, [isAdmin]);
 
   const handleChangeRole = (userId: string, currentRole: Role) => {
     const newRole = currentRole === Role.Admin ? Role.User : Role.Admin;
@@ -72,21 +91,94 @@ const AgencyTeam = ({ users, isAdmin, currentUserId }: AgencyTeamProps) => {
     );
   };
 
+  const ensureSession = async () => {
+    try {
+      // Get current session to ensure we're still logged in as the correct user
+      const { data } = await supabase.auth.getSession();
+      
+      // Log for debugging
+      console.log("Current session user:", data.session?.user?.id);
+      console.log("Expected user:", user?.id);
+      
+      // If session mismatch, reload the page to restore the correct session
+      if (data.session?.user?.id !== user?.id) {
+        console.warn("Session mismatch detected, reloading application");
+        window.location.reload();
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error checking session:", error);
+      return true; // Continue anyway
+    }
+  };
+
+  const handleAddMember = async (data: any) => {
+    setIsAdding(true);
+    
+    try {
+      // First, ensure we have the correct session
+      const sessionValid = await ensureSession();
+      if (!sessionValid) return;
+      
+      // Proceed with adding the user
+      await addAgencyUser.mutateAsync({
+        email: data.email,
+        name: data.name,
+        role: data.role,
+      });
+      
+      // Show success message
+      toast({
+        title: "Team member added",
+        description: `${data.email} has been added to your agency.`,
+      });
+      
+      // Double-check session after adding to ensure it didn't change
+      await ensureSession();
+      
+      // Close the dialog after successful addition
+      setIsAddDialogOpen(false);
+    } catch (error) {
+      console.error("Error adding team member:", error);
+      
+      // Show more specific error for admin API issues
+      let errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      
+      if (errorMessage.includes("admin")) {
+        errorMessage = "Admin privileges required. Please contact your system administrator.";
+      }
+      
+      toast({
+        variant: "destructive",
+        title: "Failed to add team member",
+        description: errorMessage,
+      });
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Team Members</CardTitle>
         <CardDescription>
           View and manage your agency's team members
+          {localIsAdmin && <span className="ml-2 text-green-600">(Admin Access)</span>}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="border rounded-md">
           <div className="p-2 border-b bg-muted/40 flex items-center justify-between">
             <div className="font-medium">Team Members ({users.length})</div>
-            {isAdmin && (
+            {localIsAdmin && (
               <Button 
-                onClick={() => setIsAddDialogOpen(true)} 
+                onClick={() => {
+                  console.log("Add Member button clicked");
+                  setIsAddDialogOpen(true);
+                }} 
                 size="sm"
                 variant="outline"
                 className="h-8"
@@ -227,7 +319,10 @@ const AgencyTeam = ({ users, isAdmin, currentUserId }: AgencyTeamProps) => {
 
         <AddTeamMemberDialog
           open={isAddDialogOpen}
-          onOpenChange={setIsAddDialogOpen}
+          onOpenChange={(open) => {
+            console.log("Dialog open state changing to:", open);
+            setIsAddDialogOpen(open);
+          }}
         />
         
         <UserAvailabilityDialog

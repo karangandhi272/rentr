@@ -19,10 +19,8 @@ export enum Role {
 export interface SignUpData {
   email: string;
   password: string;
-  name: string;
-  role: Role;
-  agencyId?: string;
-  phoneNumber?: string;
+  name?: string;
+  role?: Role;
 }
 
 export interface Agency {

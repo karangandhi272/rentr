@@ -3,53 +3,45 @@ import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { AgencyUser } from '../types';
 import { Role } from '@/types/auth.types';
+import { sendWelcomeEmail } from '@/utils/emailService'; // You'll need to create this utility
 
-export function useAgencyUsers() {
-  const { user } = useAuth();
-  
+interface UseAgencyUsersOptions {
+  agencyId?: string;
+}
+
+export const useAgencyUsers = (options?: UseAgencyUsersOptions) => {
+  const { agencyId } = options || {};
+
   return useQuery({
-    queryKey: ['agencyUsers', user?.id],
+    queryKey: ["agency-users", agencyId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!agencyId) {
+        console.log("No agency ID provided to useAgencyUsers");
+        return [];
+      }
       
       try {
-        // First get the user's agency ID
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('agencyid')
-          .eq('id', user.id)
-          .single();
-        
-        if (userError) {
-          console.error("Failed to get user's agency:", userError);
-          return [];
+        console.log("Fetching agency users for agency:", agencyId);
+        const { data, error } = await supabase
+          .from("users")
+          .select("*")
+          .eq("agencyid", agencyId);
+
+        if (error) {
+          console.error("Error fetching agency users:", error);
+          throw error;
         }
-        
-        if (!userData?.agencyid) {
-          console.log("User is not part of any agency");
-          return [];
-        }
-        
-        // Get all users in the same agency
-        const { data: agencyUsers, error: usersError } = await supabase
-          .from('users')
-          .select('id, name, email, role, profile_picture, is_active, availability')
-          .eq('agencyid', userData.agencyid);
-        
-        if (usersError) {
-          console.error("Failed to fetch agency users:", usersError);
-          return [];
-        }
-        
-        return agencyUsers as AgencyUser[];
+
+        console.log(`Found ${data?.length || 0} users for agency ${agencyId}`);
+        return data || [];
       } catch (err) {
-        console.error("Error in useAgencyUsers:", err);
+        console.error("Exception in useAgencyUsers:", err);
         return [];
       }
     },
-    enabled: !!user
+    enabled: !!agencyId,
   });
-}
+};
 
 export function useUpdateUserRole() {
   const queryClient = useQueryClient();
@@ -79,184 +71,242 @@ export function useAddAgencyUser() {
     mutationFn: async ({ 
       email, 
       name, 
-      role, 
-      generatePassword = true 
+      role 
     }: { 
       email: string; 
       name?: string; 
       role: Role; 
-      generatePassword?: boolean;
     }) => {
-      // First get the user's agency ID
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('agencyid')
-        .eq('id', user?.id)
-        .single();
-      
-      if (userError) throw userError;
-      
-      if (!userData?.agencyid) {
-        throw new Error("You are not associated with an agency");
+      if (!user) {
+        throw new Error("You must be logged in to add team members");
       }
-      
-      // Check if user with this email already exists in Auth
-      const { data: existingAuth, error: authCheckError } = await supabase.auth.admin.listUsers({
-        filter: { email: [email] }
-      });
-      
-      let userId: string;
-      let inviteSent = false;
-      
-      if (authCheckError) {
-        console.error("Error checking for existing user:", authCheckError);
-      }
-      
-      // If user doesn't exist in Auth, create them
-      if (!existingAuth || existingAuth.users.length === 0) {
-        // Generate a random password for new users
-        const tempPassword = generatePassword 
-          ? Math.random().toString(36).slice(-8) + Math.random().toString(36).toUpperCase().slice(-4) + "!"
-          : "";
-        
-        // Create user in Auth
-        const { data: newAuthUser, error: createAuthError } = await supabase.auth.admin.createUser({
-          email,
-          password: tempPassword,
-          email_confirm: true,
-          user_metadata: {
-            name: name || email.split('@')[0],
-            agencyid: userData.agencyid,
-            role: role
-          }
-        });
-        
-        if (createAuthError) throw createAuthError;
-        
-        if (!newAuthUser?.user) {
-          throw new Error("Failed to create user");
-        }
-        
-        userId = newAuthUser.user.id;
-        inviteSent = true;
-        
-        // Create user record in the users table
-        const { error: createUserError } = await supabase
-          .from('users')
-          .insert([{
-            id: userId,
-            name: name || email.split('@')[0],
-            email,
-            agencyid: userData.agencyid,
-            role,
-            created_at: new Date().toISOString(),
-            is_active: true,
-          }]);
-        
-        if (createUserError) {
-          // If we fail to create the user record, delete the auth user
-          await supabase.auth.admin.deleteUser(userId);
-          throw createUserError;
-        }
-      } else {
-        // User exists in Auth, check if they're in our users table
-        userId = existingAuth.users[0].id;
-        
-        const { data: existingUser, error: userCheckError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', userId)
+
+      try {
+        // First get the user's agency ID
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("agencyid")
+          .eq("id", user.id)
           .single();
         
-        if (userCheckError && userCheckError.code !== 'PGRST116') {
-          throw userCheckError;
+        if (userError) {
+          console.error("Error getting user agency:", userError);
+          throw new Error("Failed to get your agency information");
         }
         
-        // Update user with new agency and role
-        if (existingUser) {
-          // If user exists, update their agency
+        if (!userData?.agencyid) {
+          throw new Error("You are not associated with any agency");
+        }
+        
+        const agencyId = userData.agencyid;
+        
+        // Get agency name for the welcome email
+        const { data: agencyData, error: agencyError } = await supabase
+          .from("agencies")
+          .select("name")
+          .eq("id", agencyId)
+          .single();
+          
+        if (agencyError) {
+          console.error("Error fetching agency details:", agencyError);
+          throw new Error("Failed to get agency details");
+        }
+        
+        // Check if user with email already exists
+        const { data: existingUsers, error: emailCheckError } = await supabase
+          .from('users')
+          .select('id, email')
+          .ilike('email', email);
+          
+        if (emailCheckError) {
+          console.error("Error checking existing user:", emailCheckError);
+        }
+        
+        // User already exists in database
+        if (existingUsers && existingUsers.length > 0) {
+          // Add them to this agency directly
+          const existingUserId = existingUsers[0].id;
+          
+          // Update the user to be part of this agency too
           const { error: updateError } = await supabase
             .from('users')
             .update({ 
-              agencyid: userData.agencyid,
+              agencyid: agencyId,
               role,
-              is_active: true,
-              updated_at: new Date().toISOString()
+              updated_at: new Date().toISOString() 
             })
-            .eq('id', userId);
+            .eq('id', existingUserId);
+            
+          if (updateError) {
+            console.error("Error updating existing user:", updateError);
+            throw updateError;
+          }
           
-          if (updateError) throw updateError;
-        } else {
-          // Insert new user record
-          const { error: insertError } = await supabase
-            .from('users')
-            .insert([{ 
-              id: userId,
-              name: name || email.split('@')[0],
-              email,
-              agencyid: userData.agencyid,
-              role,
-              created_at: new Date().toISOString(),
-              is_active: true,
-            }]);
-          
-          if (insertError) throw insertError;
-        }
-      }
-      
-      // Add entry to agency_members table
-      const { error: memberError } = await supabase
-        .from('agency_members')
-        .insert([{
-          userid: userId,
-          agencyid: userData.agencyid,
-          role,
-          is_active: true,
-          created_at: new Date().toISOString()
-        }]);
-      
-      if (memberError) {
-        // Check if this is a duplicate key error (user already a member)
-        if (memberError.code === '23505') {
-          // Update the existing record instead
-          const { error: updateMemberError } = await supabase
+          // Add to agency_members table
+          const { error: memberError } = await supabase
             .from('agency_members')
-            .update({
+            .insert([{
+              userid: existingUserId,
+              agencyid: agencyId,
               role,
               is_active: true,
-              updated_at: new Date().toISOString()
-            })
-            .eq('userid', userId)
-            .eq('agencyid', userData.agencyid);
+              created_at: new Date().toISOString()
+            }]);
+            
+          if (memberError && memberError.code !== '23505') { // Ignore duplicate key errors
+            console.error("Error adding to agency_members:", memberError);
+            throw memberError;
+          }
           
-          if (updateMemberError) throw updateMemberError;
-        } else {
+          return { 
+            success: true, 
+            invited: false,
+            userId: existingUserId 
+          };
+        }
+        
+        // Generate a temporary password
+        const tempPassword = generateStrongPassword();
+        const displayName = name || email.split('@')[0];
+        
+        // Only use admin.createUser (no fallbacks)
+        const { data: adminAuthData, error: adminAuthError } = await supabase.auth.admin.createUser({
+          email,
+          password: tempPassword,
+          email_confirm: true, // Auto-confirm the email
+          user_metadata: {
+            name: displayName,
+            role,
+            agencyid: agencyId,
+          }
+        });
+        
+        if (adminAuthError) {
+          console.error("Error creating user with admin API:", adminAuthError);
+          throw new Error(
+            `Cannot create user account: ${adminAuthError.message}. ` +
+            `You need admin privileges to add team members.`
+          );
+        }
+        
+        if (!adminAuthData?.user) {
+          throw new Error("Failed to create user account: No user data returned");
+        }
+        
+        const userId = adminAuthData.user.id;
+        
+        // Create user record in the database
+        const { error: dbError } = await supabase
+          .from('users')
+          .insert([{
+            id: userId,
+            name: displayName,
+
+            agencyid: agencyId,
+            role,
+            is_active: true,
+            created_at: new Date().toISOString()
+          }]);
+        
+        if (dbError) {
+          console.error("Error creating user in database:", dbError);
+          throw dbError;
+        }
+        
+        // Add to agency_members table
+        const { error: memberError } = await supabase
+          .from('agency_members')
+          .insert([{
+            userid: userId,
+            agencyid: agencyId,
+            role,
+            is_active: true,
+            created_at: new Date().toISOString()
+          }]);
+        
+        if (memberError) {
+          console.error("Error adding to agency_members:", memberError);
           throw memberError;
         }
-      }
-      
-      // Send password reset email for new users
-      if (inviteSent) {
+        
+        // Send welcome email with credentials
         try {
-          await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin + '/reset-password',
-          });
-        } catch (resetError) {
-          console.error("Error sending password reset email:", resetError);
-          // Continue anyway since the user was created successfully
+          // In development, just log the credentials
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`
+              Welcome Email:
+              To: ${email}
+              Subject: Welcome to ${agencyData.name}
+              
+              Hi ${displayName},
+              
+              You've been invited to join ${agencyData.name} on Rentr.
+              
+              Your login details:
+              Email: ${email}
+              Password: ${tempPassword}
+              
+              Login at: ${window.location.origin}/auth
+            `);
+          } else {
+            // In production, use your email service
+            await sendWelcomeEmail({
+              to: email,
+              name: displayName,
+              agency: agencyData.name,
+              password: tempPassword,
+              invitedBy: user.email || 'your colleague',
+              loginUrl: window.location.origin + '/auth'
+            });
+          }
+        } catch (emailError) {
+          console.error("Error sending welcome email:", emailError);
+          // Continue even if email fails, since the account is created
         }
+        
+        return { 
+          success: true, 
+          invited: true,
+          userId
+        };
+      } catch (err) {
+        console.error("Error in addAgencyUser:", err);
+        throw err;
       }
-      
-      return { 
-        success: true, 
-        invited: inviteSent,
-        userId 
-      };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agencyUsers'] });
+      // Refresh agency users data
+      queryClient.invalidateQueries({ queryKey: ['agency-users'] });
     },
   });
+}
+
+// Helper function to generate a strong password
+function generateStrongPassword(): string {
+  // Generate a password with at least 12 characters including at least one number, uppercase, lowercase, and special character
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const numbers = '0123456789';
+  const special = '!@#$%^&*()_+~`|}{[]:;?><,./-=';
+  
+  const getRandomChar = (str: string) => str.charAt(Math.floor(Math.random() * str.length));
+  
+  // Start with one of each required character type
+  let password = [
+    getRandomChar(lowercase),
+    getRandomChar(uppercase),
+    getRandomChar(numbers),
+    getRandomChar(special),
+  ].join('');
+  
+  // Add 8 more random characters
+  const allChars = lowercase + uppercase + numbers + special;
+  for (let i = 0; i < 8; i++) {
+    password += getRandomChar(allChars);
+  }
+  
+  // Shuffle the password
+  return password.split('').sort(() => 0.5 - Math.random()).join('');
 }
 
 export function useRemoveAgencyUser() {
@@ -292,4 +342,3 @@ export function useRemoveAgencyUser() {
     }
   });
 }
- 

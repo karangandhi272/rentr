@@ -197,111 +197,146 @@ export const updateProperty = async (
 
 export const propertiesApi = {
   
-  // Fetch properties for the current user's agency
   fetchUserProperties: async function () {
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
-      throw new Error("User not authenticated");
+      return [];
     }
 
-    // First get the user's agency ID
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("agencyid")
-      .eq("id", user.id)
-      .single();
+    try {
+      // First get the user's agency ID
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("agencyid")
+        .eq("id", user.id)
+        .single();
+        
+      if (userError) {
+        console.error("Failed to get user agency:", userError);
+        return [];
+      }
       
-    if (userError) {
-      throw new Error("Failed to get user agency information");
-    }
-    
-    if (!userData.agencyid) {
-      throw new Error("User is not associated with any agency");
-    }
-    
-    // Then fetch properties for that agency
-    const { data: properties, error: propertiesError } = await supabase
-      .from("property")
-      .select("*")
-      .eq("agencyid", userData.agencyid);
+      if (!userData?.agencyid) {
+        console.log("User has no agency association");
+        return [];
+      }
 
-    if (propertiesError) throw propertiesError;
+      // Then get properties for that agency
+      const { data: properties, error: propertiesError } = await supabase
+        .from("property")
+        .select("*")
+        .eq("agencyid", userData.agencyid);
 
-    return properties;
+      if (propertiesError) {
+        console.error("Failed to fetch properties:", propertiesError);
+        return [];
+      }
+
+      return properties || [];
+    } catch (err) {
+      console.error("Error in fetchUserProperties:", err);
+      return [];
+    }
   },
 
   // Fetch properties for a specific agency directly
   fetchAgencyProperties: async function(agencyId: string) {
     if (!agencyId) {
-      throw new Error("Agency ID is required");
+      return [];
     }
     
-    const { data: properties, error: propertiesError } = await supabase
-      .from("property")
-      .select("*")
-      .eq("agencyid", agencyId);
+    try {
+      const { data: properties, error: propertiesError } = await supabase
+        .from("property")
+        .select("*")
+        .eq("agencyid", agencyId);
 
-    if (propertiesError) throw propertiesError;
+      if (propertiesError) {
+        console.error("Failed to fetch agency properties:", propertiesError);
+        return [];
+      }
 
-    return properties;
+      return properties || [];
+    } catch (err) {
+      console.error("Error in fetchAgencyProperties:", err);
+      return [];
+    }
   },
 
   fetchPropertyImage: async function (propertyid: string) {
-    const { data: images, error: imagesError } = await supabase
-      .from("propertyimages")
-      .select("url")
-      .eq("propertyid", propertyid)
-      .limit(1)
-      .single();
+    try {
+      const { data: images, error: imagesError } = await supabase
+        .from("propertyimages")
+        .select("url")
+        .eq("propertyid", propertyid)
+        .limit(1)
+        .single();
 
-    if (imagesError) {
-      console.error("Error fetching image:", imagesError);
+      if (imagesError) {
+        console.log("Property has no images");
+        return "/api/placeholder/300/200";
+      }
+
+      return images?.url;
+    } catch (err) {
+      console.error("Error fetching property image:", err);
       return "/api/placeholder/300/200";
     }
-
-    return images?.url;
   },
 
   async fetchPropertyImages(propertyId: string) {
-    console.log('Fetching images for property:', propertyId); // Debug log
-    
-    const { data, error } = await supabase
-      .from('propertyimages')
-      .select('*')
-      .eq('propertyid', propertyId); // Changed from property_id to propertyid
+    try {
+      console.log('Fetching images for property:', propertyId);
+      
+      const { data, error } = await supabase
+        .from('propertyimages')
+        .select('*')
+        .eq('propertyid', propertyId);
 
-    if (error) {
-      console.error('Error fetching images:', error);
-      throw error;
-    }
+      if (error) {
+        console.error('Error fetching images:', error);
+        return [];
+      }
 
-    console.log('Raw images data:', data); // Debug log
-    
-    if (!data || data.length === 0) {
-      console.log('No images found for property:', propertyId);
+      console.log('Raw images data:', data);
+      
+      if (!data || data.length === 0) {
+        console.log('No images found for property:', propertyId);
+        return [];
+      }
+
+      return data.map(img => ({
+        url: img.url || img.image_url
+      }));
+    } catch (err) {
+      console.error("Error in fetchPropertyImages:", err);
       return [];
     }
-
-    return data.map(img => ({
-      url: img.url || img.image_url // Handle both possible column names
-    }));
   },
 
   fetchPropertyById: async function (propertyId: string) {
-    const { data: property, error: propertyError } = await supabase
-      .from("property")
-      .select("*")
-      .eq("propertyid", propertyId)
-      .single();
+    try {
+      const { data: property, error: propertyError } = await supabase
+        .from("property")
+        .select("*")
+        .eq("propertyid", propertyId)
+        .single();
 
-    if (propertyError) throw propertyError;
+      if (propertyError) {
+        console.error("Failed to fetch property:", propertyError);
+        return null;
+      }
 
-    return property;
+      return property;
+    } catch (err) {
+      console.error("Error in fetchPropertyById:", err);
+      return null;
+    }
   },
-  
+
   // Create a new property with the agency ID
   createProperty: async function(propertyData: Omit<Property, "propertyid" | "created_at">) {
     const {
@@ -312,45 +347,53 @@ export const propertiesApi = {
       throw new Error("User not authenticated");
     }
 
-    // First get the user's agency ID if not provided
-    if (!propertyData.agencyid) {
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("agencyid")
-        .eq("id", user.id)
-        .single();
+    try {
+      // First get the user's agency ID if not provided
+      if (!propertyData.agencyid) {
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("agencyid")
+          .eq("id", user.id)
+          .single();
+          
+        if (userError) {
+          throw new Error("Failed to get user agency information");
+        }
         
-      if (userError) {
-        throw new Error("Failed to get user agency information");
+        if (!userData?.agencyid) {
+          throw new Error("User is not associated with any agency");
+        }
+        
+        // Add the agency ID to the property data
+        propertyData.agencyid = userData.agencyid;
       }
       
-      if (!userData.agencyid) {
-        throw new Error("User is not associated with any agency");
+      // Add created_by field to track which user created the property
+      propertyData.created_by = user.id;
+      
+      // Create the property
+      const { data, error } = await supabase
+        .from("property")
+        .insert([propertyData])
+        .select();
+        
+      if (error) {
+        console.error("Failed to create property:", error);
+        throw error;
       }
       
-      // Add the agency ID to the property data
-      propertyData.agencyid = userData.agencyid;
+      return data?.[0];
+    } catch (err) {
+      console.error("Error in createProperty:", err);
+      throw err;
     }
-    
-    // Add created_by field to track which user created the property
-    propertyData.created_by = user.id;
-    
-    // Create the property
-    const { data, error } = await supabase
-      .from("property")
-      .insert([propertyData])
-      .select();
-      
-    if (error) throw error;
-    
-    return data?.[0];
   },
 
   fetchPropertyQuestions: getPropertyQuestions,
   addPropertyQuestion,
   updatePropertyQuestion,
   deletePropertyQuestion,
-  checkQuestionExists,  // Add this
+  checkQuestionExists,
   updatePropertyQuestions,
   updateProperty
 };
